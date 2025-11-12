@@ -1,14 +1,12 @@
-import { useState } from 'react'
+import React from "react";
+import Navbar from "./components/Layout/Navbar";
+import AppRouter from "./router";
 
-import './App.css'
+const App = () => (
+  <div className="min-h-screen bg-gray-50">
+    <Navbar />
+    <AppRouter />
+  </div>
+);
 
-function App() {
-
-  return (
-    <>
-      
-    </>
-  )
-}
-
-export default App
+export default App;
