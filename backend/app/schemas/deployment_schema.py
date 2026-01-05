@@ -13,18 +13,18 @@ class CloudProvider(str, Enum):
 
 class AWSRegion(str, Enum):
     US_EAST_1 = "us-east-1"
-    US_WEST_1 = "us-west-1"
-    US_WEST_2 = "us-west-2"
-    EU_CENTRAL_1 = "eu-central-1"
-    AP_SOUTH_1 = "ap-south-1"  # Mumbai
+    # US_WEST_1 = "us-west-1"
+    # US_WEST_2 = "us-west-2"
+    # EU_CENTRAL_1 = "eu-central-1"
+    # AP_SOUTH_1 = "ap-south-1"  # Mumbai
 
 
 class EC2InstanceType(str, Enum):
     T2_MICRO = "t2.micro"
-    T3_MICRO = "t3.micro"
-    T3_SMALL = "t3.small"
-    T3_MEDIUM = "t3.medium"
-    M5_LARGE = "m5.large"
+    # T3_MICRO = "t3.micro"
+    # T3_SMALL = "t3.small"
+    # T3_MEDIUM = "t3.medium"
+    # M5_LARGE = "m5.large"
 
 
 class DBEngine(str, Enum):
