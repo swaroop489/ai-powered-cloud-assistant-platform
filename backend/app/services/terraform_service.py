@@ -2,9 +2,10 @@ import asyncio
 import subprocess
 import shutil
 import logging
+import os
+import json
 from typing import AsyncGenerator, List, Optional
 from pathlib import Path
-import json
 
 # Configure logger for this service
 logger = logging.getLogger(__name__)
@@ -12,16 +13,14 @@ logger = logging.getLogger(__name__)
 class TerraformService:
     """
     Service to handle Terraform CLI operations asynchronously.
-    Each instance acts as an isolated execution environment for a specific deployment.
+    Each instance acts as an isolated execution environment.
     """
 
     def __init__(self, working_dir: str):
         """
         Initialize the Terraform service.
-        
         Args:
-            working_dir: The absolute path where .tf files will be stored and executed.
-                         (e.g., /tmp/deployments/project-123)
+            working_dir: The absolute path where .tf files will be stored.
         """
         self.working_dir = Path(working_dir)
         self._ensure_dir()
@@ -36,53 +35,64 @@ class TerraformService:
     def _verify_terraform_installed(self):
         """Checks if Terraform binary is available in the system PATH."""
         if not shutil.which("terraform"):
-            error_msg = "Terraform binary not found. Please install Terraform on the server."
+            error_msg = "Terraform binary not found. Please install Terraform."
             logger.critical(error_msg)
             raise RuntimeError(error_msg)
 
+    def _get_env_vars(self):
+        """
+        OPTIMIZATION: Configures a global plugin cache.
+        This prevents re-downloading 300MB+ of AWS providers for every deployment.
+        """
+        env = os.environ.copy()
+        
+        # 1. Define a central cache directory (backend/tf_cache)
+        # using .parent.parent to go up from 'services' to 'backend' root
+        cache_dir = Path(__file__).parent.parent.parent / "tf_cache"
+        
+        # 2. Ensure it exists
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 3. Tell Terraform to use it
+        env["TF_PLUGIN_CACHE_DIR"] = str(cache_dir.resolve())
+        
+        return env
+
     async def _run_command(self, command_args: List[str]) -> AsyncGenerator[str, None]:
         """
-        Internal method to execute a subprocess command asynchronously and stream output.
-        
-        Args:
-            command_args: List of command parts (e.g., ["terraform", "init"])
-            
-        Yields:
-            str: Line-by-line output from stdout/stderr.
+        Executes a subprocess command asynchronously and streams output.
         """
         cmd_str = " ".join(command_args)
         yield f"Executing: {cmd_str}...\n"
 
         try:
-            # create_subprocess_exec allows us to run non-blocking shell commands
             process = await asyncio.create_subprocess_exec(
                 *command_args,
                 cwd=str(self.working_dir),
+                
+                # CRITICAL: Inject the cache environment variables
+                env=self._get_env_vars(),
+                
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT, # Merge errors into standard output stream
-                limit=1024 * 128 # Increase buffer size for large logs
+                stderr=asyncio.subprocess.STDOUT,
+                limit=1024 * 128
             )
 
-            # Read stream line by line as it is generated
             while True:
                 line = await process.stdout.readline()
                 if not line:
                     break
                 
-                # Decode bytes to string and yield
                 decoded_line = line.decode('utf-8').rstrip()
                 if decoded_line:
                     yield f"{decoded_line}\n"
 
-            # Wait for the process to actually exit
             exit_code = await process.wait()
 
             if exit_code != 0:
                 error_msg = f"Command failed with exit code {exit_code}"
                 yield f"\n{error_msg}\n"
                 logger.error(f"{error_msg} in {self.working_dir}")
-                # We do NOT raise an exception here so the stream finishes gracefully.
-                # The caller (router) should check the logs or status.
                 raise subprocess.CalledProcessError(exit_code, cmd_str)
             else:
                 yield f"Command completed successfully.\n"
@@ -97,12 +107,7 @@ class TerraformService:
     # =========================================================================
 
     def write_main_tf(self, hcl_content: str) -> str:
-        """
-        Writes the generated HCL code to main.tf in the working directory.
-        
-        Returns:
-            str: Path to the created file.
-        """
+        """Writes the generated HCL code to main.tf."""
         file_path = self.working_dir / "main.tf"
         with open(file_path, "w") as f:
             f.write(hcl_content)
@@ -111,44 +116,44 @@ class TerraformService:
         return str(file_path)
 
     async def init(self) -> AsyncGenerator[str, None]:
-        """
-        Runs 'terraform init' to download providers and setup backend.
-        """
+        """Runs 'terraform init'."""
         cmd = ["terraform", "init", "-no-color", "-input=false"]
         async for line in self._run_command(cmd):
             yield line
 
     async def validate(self) -> AsyncGenerator[str, None]:
-        """
-        Runs 'terraform validate' to check for syntax errors.
-        """
+        """Runs 'terraform validate'."""
         cmd = ["terraform", "validate", "-no-color"]
         async for line in self._run_command(cmd):
             yield line
 
     async def plan(self) -> AsyncGenerator[str, None]:
-        """
-        Runs 'terraform plan' to generate an execution plan file.
-        Saves the plan to 'tfplan' file.
-        """
+        """Runs 'terraform plan'."""
         cmd = ["terraform", "plan", "-no-color", "-input=false", "-out=tfplan"]
         async for line in self._run_command(cmd):
             yield line
 
     async def apply(self) -> AsyncGenerator[str, None]:
-        """
-        Runs 'terraform apply' using the saved plan.
-        WARNING: This auto-approves the changes.
-        """
-        # We rely on the 'tfplan' file created by the plan() step for safety
+        """Runs 'terraform apply'."""
         cmd = ["terraform", "apply", "-no-color", "-input=false", "-auto-approve", "tfplan"]
         async for line in self._run_command(cmd):
             yield line
     
+    async def destroy(self) -> AsyncGenerator[str, None]:
+        """Runs 'terraform destroy'."""
+        cmd = ["terraform", "destroy", "-no-color", "-input=false", "-auto-approve"]
+        async for line in self._run_command(cmd):
+            yield line
+
     async def get_outputs(self) -> dict:
         """
-        Retrieves Terraform output values as a dictionary.
+        Retrieves and normalizes Terraform output values.
+        Returns: {'public_ip': '1.2.3.4'} instead of nested objects.
         """
+        # If no state file exists, return empty
+        if not (self.working_dir / "terraform.tfstate").exists():
+            return {}
+
         process = await asyncio.create_subprocess_exec(
             "terraform", "output", "-json",
             cwd=str(self.working_dir),
@@ -163,22 +168,17 @@ class TerraformService:
             return {}
 
         try:
-            return json.loads(stdout.decode())
+            raw_outputs = json.loads(stdout.decode())
+            
+            # Normalize: Extract just the 'value' from the Terraform output structure
+            # Example Raw: {"ip": {"sensitive": false, "type": "string", "value": "1.2.3.4"}}
+            # Example Clean: {"ip": "1.2.3.4"}
+            normalized_outputs = {
+                key: value.get("value")
+                for key, value in raw_outputs.items()
+            }
+            return normalized_outputs
+            
         except json.JSONDecodeError:
             logger.error("Failed to parse terraform output JSON")
             return {}
-
-        normalized_outputs = {
-            key: value.get("value")
-            for key, value in raw_outputs.items()
-        }
-
-        return normalized_outputs
-
-    # async def destroy(self) -> AsyncGenerator[str, None]:
-    #     """
-    #     Runs 'terraform destroy' to tear down all resources.
-    #     """
-    #     cmd = ["terraform", "destroy", "-no-color", "-input=false", "-auto-approve"]
-    #     async for line in self._run_command(cmd):
-    #         yield line

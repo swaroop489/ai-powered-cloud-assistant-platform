@@ -13,3 +13,4 @@ tfplan
 
 # Logs
 *.log
+tf_cache
