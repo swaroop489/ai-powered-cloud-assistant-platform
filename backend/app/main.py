@@ -2,6 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import connect_to_mongo, close_mongo_connection
 from .routers import auth
+from app.routers import ai, deploy
+import sys
+import asyncio
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 app = FastAPI()
 
@@ -32,3 +38,10 @@ async def shutdown_db_client():
 @app.get("/")
 def read_root():
     return {"message": "Welcome to AI-Powered Cloud Assistant Platform Backend"}
+
+
+
+app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
+app.include_router(deploy.router, prefix="/api/deploy", tags=["Deployment"])
+
+

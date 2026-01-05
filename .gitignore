@@ -3,3 +3,14 @@ node_modules
 .vscode
 venv
 __pycache__
+temp_test_deploy
+# Terraform runtime artifacts
+deployments/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+
+# Logs
+*.log
+tf_cache
