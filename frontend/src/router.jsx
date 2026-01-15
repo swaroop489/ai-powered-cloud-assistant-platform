@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 // import Deployments from "./pages/Deployments";
 // import MetricsPage from "./pages/MetricsPage";
 import DashboardLayout from "./components/Layout/DashboardLayout";
+import AgentConsole from "./pages/Dashboard/AgentConsole";
 
 
 const AppRouter = () => (
@@ -15,7 +16,11 @@ const AppRouter = () => (
     <Route path="/register" element={<Register />} />
     {/* <Route path="/deployments" element={<Deployments />} />
     <Route path="/metrics" element={<MetricsPage />} /> */}
-    <Route path="/dashboard" element={<DashboardLayout />} />
+    <Route path="/dashboard" element={
+      <DashboardLayout>
+        <AgentConsole />
+      </DashboardLayout>
+    } />
   </Routes>
 );
 
