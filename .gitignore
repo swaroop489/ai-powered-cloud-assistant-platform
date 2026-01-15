@@ -5,7 +5,7 @@ venv
 __pycache__
 temp_test_deploy
 # Terraform runtime artifacts
-deployments/
+backend/deployments/
 **/.terraform/
 *.tfstate
 *.tfstate.*

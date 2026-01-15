@@ -16,8 +16,13 @@ export const deployService = {
      * @param {string} id - The deployment ID.
      * @returns {Promise<Object>} - Status, logs, and metadata.
      */
-    getDeploymentStatus: async (id) => {
-        const response = await apiClient.get(`/deploy/${id}`);
+    async getDeploymentStatus(deploymentId) {
+        const response = await apiClient.get(`/deploy/${deploymentId}`);
+        return response.data;
+    },
+
+    async getHistory() {
+        const response = await apiClient.get('/deploy/history');
         return response.data;
     }
 };
