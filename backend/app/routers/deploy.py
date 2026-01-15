@@ -61,6 +61,17 @@ async def apply_infrastructure(
     }
 
 
+@router.get("/{deployment_id}")
+async def get_deployment_status(deployment_id: str):
+    """
+    Fetch deployment status and logs.
+    """
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id}, {"_id": 0})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
+
+
 # =====================================================
 # Helper Functions
 # =====================================================
@@ -70,12 +81,14 @@ async def log_update(deployment_id: str, message: str):
     Append a log entry while preventing unbounded growth.
     Keeps last 500 logs only.
     """
+    timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
+    log_entry = f"[{timestamp}] {message}"
     await db.db.deployments.update_one(
         {"deployment_id": deployment_id},
         {
             "$push": {
                 "logs": {
-                    "$each": [message],
+                    "$each": [log_entry],
                     "$slice": -500,
                 }
             },

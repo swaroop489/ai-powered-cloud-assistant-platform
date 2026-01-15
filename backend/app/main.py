@@ -6,15 +6,14 @@ from app.routers import ai, deploy
 import sys
 import asyncio
 
-if sys.platform.startswith("win"):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 app = FastAPI()
 
 # Input list of origins that are allowed to make cross-origin requests
 origins = [
     "http://localhost:5173", # Vite dev server
-    "http://localhost:3000",
 ]
 
 app.add_middleware(
