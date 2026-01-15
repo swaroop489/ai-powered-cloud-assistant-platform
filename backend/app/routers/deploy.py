@@ -6,6 +6,10 @@ from app.schemas.deployment_schema import DeploymentRequest
 from app.services.terraform_service import TerraformService
 from app.utils.codegen import generate_hcl
 from app.database import db  # MongoDB connection
+from fastapi import Depends
+from app.dependencies import get_current_user
+from fastapi import Depends
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -14,6 +18,7 @@ router = APIRouter()
 async def apply_infrastructure(
     plan: DeploymentRequest,
     background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
 ):
     """
     User approves plan → Terraform is executed asynchronously
@@ -27,6 +32,7 @@ async def apply_infrastructure(
     # -----------------------------
     deployment_doc = {
         "deployment_id": deployment_id,
+        "user_id": str(current_user["_id"]), 
         "project_name": plan.project_name,
         "environment": plan.environment,
         "region": plan.region.value,
@@ -61,8 +67,31 @@ async def apply_infrastructure(
     }
 
 
+@router.get("/history")
+async def get_deployment_history(current_user: dict = Depends(get_current_user)):
+    """
+    Fetch all deployments for the current user.
+    """
+    cursor = db.db.deployments.find(
+        {"user_id": str(current_user["_id"])}  # Match by ID
+    ).sort("created_at", -1)
+    
+    deployments = await cursor.to_list(length=100)
+    
+    # Convert _id to string or remove it to avoid serialization issues
+    for d in deployments:
+        if "_id" in d:
+            d["_id"] = str(d["_id"])
+            
+    return deployments
+
+
 @router.get("/{deployment_id}")
-async def get_deployment_status(deployment_id: str):
+async def get_deployment_status(
+    deployment_id: str,
+    # Optional: Enforce auth for status check too?
+    # current_user: dict = Depends(get_current_user) 
+):
     """
     Fetch deployment status and logs.
     """
