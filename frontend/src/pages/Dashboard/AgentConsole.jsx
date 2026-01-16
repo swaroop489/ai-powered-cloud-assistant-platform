@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ChatBox from '../../components/Chat/ChatBox';
 import DeploymentStatus from '../../components/Deployments/DeploymentStatus';
+import DeploymentHistory from '../../components/Deployments/DeploymentHistory';
 import { deployService } from '../../api/deployService';
 
 const AgentConsole = () => {
@@ -36,20 +37,31 @@ const AgentConsole = () => {
                     )}
                 </div>
 
-                <div className="hidden lg:block h-full bg-white border border-zinc-200 rounded-xl p-4 shadow-sm">
-                    <h3 className="font-semibold text-zinc-900 mb-4">System Status</h3>
-                    <div className="space-y-4">
-                        <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
-                            <div className="text-xs text-zinc-500 uppercase font-medium">AWS Connection</div>
-                            <div className="text-emerald-600 font-medium flex items-center gap-2">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Active
+
+                {/* Sidebar / Deployment History */}
+                <div className="hidden lg:flex lg:flex-col h-full gap-4">
+                    <div className="hidden lg:block bg-white border border-zinc-200 rounded-xl p-4 shadow-sm">
+                        <h3 className="font-semibold text-zinc-900 mb-4">System Status</h3>
+                        <div className="space-y-4">
+                            <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+                                <div className="text-xs text-zinc-500 uppercase font-medium">AWS Connection</div>
+                                <div className="text-emerald-600 font-medium flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Active
+                                </div>
+                            </div>
+                            <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+                                <div className="text-xs text-zinc-500 uppercase font-medium">Terraform Version</div>
+                                <div className="text-zinc-700 font-medium">v1.6.0</div>
                             </div>
                         </div>
-                        <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
-                            <div className="text-xs text-zinc-500 uppercase font-medium">Terraform Version</div>
-                            <div className="text-zinc-700 font-medium">v1.6.0</div>
-                        </div>
                     </div>
+                    <DeploymentHistory
+                        selectedDeploymentId={deploymentId}
+                        onSelectDeployment={(id) => {
+                            setDeploymentId(id);
+                            setViewState('logs');
+                        }}
+                    />
                 </div>
 
             </div>
