@@ -1,49 +1,87 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Terminal, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { deployService } from '../../api/deployService';
 
 const DeploymentStatus = ({ deploymentId, onClose }) => {
     const [logs, setLogs] = useState([]);
     const [status, setStatus] = useState('pending');
-    const [deploymentData, setDeploymentData] = useState(null);
     const logEndRef = useRef(null);
 
     useEffect(() => {
         if (!deploymentId) return;
 
-        const fetchStatus = async () => {
-            try {
-                const data = await deployService.getDeploymentStatus(deploymentId);
-                setDeploymentData(data);
-                setStatus(data.status);
-                if (data.logs) {
-                    setLogs(typeof data.logs === 'string' ? data.logs.split('\n') : data.logs);
-                }
-            } catch (error) {
-                console.error("Failed to poll deployment status", error);
+        let isMounted = true;
+        const controller = new AbortController();
 
-                if (error.message.includes('Network Error') || error.response?.status === 404) {
+        const streamLogs = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:8000/api/deploy/${deploymentId}/stream`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'text/event-stream',
+                    },
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Connection failed: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (isMounted) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+
+                    // Process complete blocks (SSE events end with \n\n)
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop(); // Keep incomplete part in buffer
+
+                    for (const part of parts) {
+                        if (part.startsWith('data: ')) {
+                            const jsonStr = part.replace('data: ', '').trim();
+                            if (!jsonStr) continue;
+
+                            try {
+                                const data = JSON.parse(jsonStr);
+                                if (data.log) {
+                                    setLogs(prev => [...prev, data.log]);
+                                } else if (data.status) {
+                                    setStatus(data.status);
+                                    if (['COMPLETED', 'FAILED'].includes(data.status)) {
+                                        // Optional: Close stream if backend doesn't
+                                        // controller.abort(); 
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Failed to parse SSE data", e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                if (error.name !== 'AbortError' && isMounted) {
+                    console.error("Stream error", error);
                     setStatus('CONNECTION_LOST');
-                    setLogs(prev => [...prev, `\n[SYSTEM] Connection with backend lost. Polling stopped.`]);
-                } else {
-                    setLogs(prev => [...prev, `[System Error] Unable to fetch deployment status.`]);
+                    setLogs(prev => [...prev, `\n[SYSTEM] Connection lost. Reconnecting...`]);
+                    // Auto-reconnect logic could go here (e.g., setTimeout(streamLogs, 3000))
                 }
             }
         };
 
-        // Initial fetch
-        fetchStatus();
+        streamLogs();
 
-        // Polling interval
-        const intervalId = setInterval(fetchStatus, 2000);
-
-        // Stop polling if completed, failed, or connection lost
-        if (['COMPLETED', 'FAILED', 'CONNECTION_LOST'].includes(status)) {
-            clearInterval(intervalId);
-        }
-
-        return () => clearInterval(intervalId);
-    }, [deploymentId, status]);
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [deploymentId]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -95,7 +133,7 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
             {/* Log Output */}
             <div className="flex-1 p-4 overflow-y-auto space-y-1 text-sm scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
                 {logs.length === 0 && (
-                    <div className="text-zinc-600 italic">Initializing deployment sequence...</div>
+                    <div className="text-zinc-600 italic">Connecting to live log stream...</div>
                 )}
                 {logs.map((log, index) => (
                     <div key={index} className="break-all whitespace-pre-wrap font-mono">
