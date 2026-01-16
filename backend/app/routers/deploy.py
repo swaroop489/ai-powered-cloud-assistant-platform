@@ -1,14 +1,15 @@
 import uuid
 import datetime
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
 
 from app.schemas.deployment_schema import DeploymentRequest
 from app.services.terraform_service import TerraformService
+from app.services.stream_manager import stream_manager
 from app.utils.codegen import generate_hcl
-from app.database import db  # MongoDB connection
-from fastapi import Depends
-from app.dependencies import get_current_user
-from fastapi import Depends
+from app.database import db
 from app.dependencies import get_current_user
 
 router = APIRouter()
@@ -101,6 +102,42 @@ async def get_deployment_status(
     return deployment
 
 
+@router.get("/{deployment_id}/stream")
+async def stream_logs(deployment_id: str):
+    """
+    SSE Endpoint for real-time logs.
+    """
+    async def event_generator():
+        # 1. Yield existing logs from MongoDB (Catch-up)
+        deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+        if deployment and "logs" in deployment:
+            for log in deployment["logs"]:
+                yield f"data: {json.dumps({'log': log})}\n\n"
+        
+        # 2. Subscribe to new logs
+        queue = await stream_manager.connect(deployment_id)
+        try:
+            while True:
+                # Wait for new log
+                data = await queue.get()
+                
+                # Check for special status messages or just pure logs
+                if data.startswith("STATUS:"):
+                    status = data.split(":", 1)[1]
+                    yield f"data: {json.dumps({'status': status})}\n\n"
+                    # If completed/failed, we can optionally close, but let's keep open for a bit
+                    if status in ["COMPLETED", "FAILED"]:
+                        # Send a final close event if needed, or just let client handle it
+                        yield f"event: close\ndata: {json.dumps({'status': status})}\n\n"
+                        break 
+                else:
+                    yield f"data: {json.dumps({'log': data})}\n\n"
+        finally:
+            await stream_manager.disconnect(deployment_id, queue)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 # =====================================================
 # Helper Functions
 # =====================================================
@@ -124,6 +161,8 @@ async def log_update(deployment_id: str, message: str):
             "$set": {"updated_at": datetime.datetime.utcnow()},
         },
     )
+    # Broadcast to real-time clients
+    await stream_manager.broadcast(deployment_id, log_entry)
 
 
 async def status_update(deployment_id: str, status: str):
@@ -139,6 +178,8 @@ async def status_update(deployment_id: str, status: str):
             }
         },
     )
+    # Broadcast status change
+    await stream_manager.broadcast(deployment_id, f"STATUS:{status}")
 
 
 # =====================================================
