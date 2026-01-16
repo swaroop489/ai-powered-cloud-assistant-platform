@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { History, Server, Calendar, ChevronRight, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { History, Server, Clock, AlertCircle, CheckCircle, Trash2, Loader2, ChevronRight } from 'lucide-react';
 import { deployService } from '../../api/deployService';
+import ConfirmationModal from '../Common/ConfirmationModal';
 
 const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
     const [deployments, setDeployments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
     useEffect(() => {
         fetchHistory();
@@ -18,7 +20,6 @@ const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
             setLoading(false);
         } catch (err) {
             console.error("Failed to fetch history", err);
-            // If 401, it might mean not logged in, but we handle that globally or via UI state
             setError("Could not load history");
             setLoading(false);
         }
@@ -29,6 +30,8 @@ const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
         const s = status.toUpperCase();
         if (s === 'COMPLETED') return <CheckCircle className="w-3 h-3 text-emerald-500" />;
         if (s === 'FAILED') return <XCircle className="w-3 h-3 text-red-500" />;
+        if (s === 'DESTROYING') return <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />;
+        if (s === 'DESTROYED') return <Trash2 className="w-3 h-3 text-zinc-400" />;
         return <Loader2 className="w-3 h-3 text-amber-500 animate-spin" />;
     };
 
@@ -62,43 +65,76 @@ const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
                         No deployments found.
                     </div>
                 ) : (
-                    deployments.map((dep) => (
+                    deployments.map((deploy) => (
                         <div
-                            key={dep.deployment_id}
-                            onClick={() => onSelectDeployment(dep.deployment_id)}
+                            key={deploy.deployment_id}
+                            onClick={() => onSelectDeployment(deploy.deployment_id)}
                             className={`
                                 group px-3 py-3 rounded-lg border transition-all cursor-pointer hover:shadow-md
-                                ${selectedDeploymentId === dep.deployment_id
+                                ${selectedDeploymentId === deploy.deployment_id
                                     ? 'bg-indigo-50 border-indigo-200 shadow-sm'
                                     : 'bg-white border-zinc-100 hover:border-zinc-200'
                                 }
                             `}
                         >
-                            <div className="flex items-start justify-between mb-1">
-                                <span className="font-medium text-sm text-zinc-800 truncate">
-                                    {dep.project_name}
-                                </span>
-                                {getStatusIcon(dep.status)}
+                            <div className="flex items-center gap-1">
+                                <div className="flex-1 min-w-0" onClick={() => onSelectDeployment(deploy.deployment_id)}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <h4 className="font-medium text-zinc-900 truncate pr-2">{deploy.project_name}</h4>
+                                        {getStatusIcon(deploy.status)}
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                        <span className="flex items-center gap-1 font-mono">
+                                            #{deploy.deployment_id.substring(0, 6)}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {new Date(deploy.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </div>
+                                {deploy.status !== 'DESTROYED' && deploy.status !== 'DESTROYING' && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setModalConfig({
+                                                isOpen: true,
+                                                title: "Destroy Deployment?",
+                                                message: "WARNING: This will permanently DESTROY all cloud resources associated with this deployment. This action cannot be undone.",
+                                                isDangerous: true,
+                                                confirmText: "Destroy Resources",
+                                                onConfirm: () => {
+                                                    deployService.destroyDeployment(deploy.deployment_id)
+                                                        .then(() => onSelectDeployment(deploy.deployment_id))
+                                                        .catch(err => console.error(err));
+                                                }
+                                            });
+                                        }}
+                                        className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        title="Destroy Resources"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
-
-                            <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
-                                <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono border border-zinc-200">
-                                    {dep.deployment_id}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(dep.created_at).toLocaleDateString()}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-xs">
-                                <span className="text-zinc-400 capitalize">{dep.region}</span>
-                                <ChevronRight className={`w-3 h-3 text-zinc-300 transition-transform ${selectedDeploymentId === dep.deployment_id ? 'text-indigo-400 translate-x-1' : 'group-hover:translate-x-1'}`} />
+                            <div className="flex items-center justify-between text-xs mt-2">
+                                <span className="text-zinc-400 capitalize">{deploy.region}</span>
+                                <ChevronRight className={`w-3 h-3 text-zinc-300 transition-transform ${selectedDeploymentId === deploy.deployment_id ? 'text-indigo-400 translate-x-1' : 'group-hover:translate-x-1'}`} />
                             </div>
                         </div>
                     ))
                 )}
             </div>
+
+            <ConfirmationModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                onConfirm={modalConfig.onConfirm}
+                confirmText={modalConfig.confirmText}
+                isDangerous={modalConfig.isDangerous}
+            />
         </div>
     );
 };
