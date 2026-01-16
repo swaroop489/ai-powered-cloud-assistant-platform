@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Terminal, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Loader2, Trash2 } from 'lucide-react';
 
 const DeploymentStatus = ({ deploymentId, onClose }) => {
     const [logs, setLogs] = useState([]);
@@ -70,7 +70,6 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
                     console.error("Stream error", error);
                     setStatus('CONNECTION_LOST');
                     setLogs(prev => [...prev, `\n[SYSTEM] Connection lost. Reconnecting...`]);
-                    // Auto-reconnect logic could go here (e.g., setTimeout(streamLogs, 3000))
                 }
             }
         };
@@ -92,6 +91,8 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
         switch (status) {
             case 'COMPLETED': return 'text-emerald-500';
             case 'FAILED': return 'text-red-500';
+            case 'DESTROYING': return 'text-orange-500';
+            case 'DESTROYED': return 'text-zinc-400 line-through';
             case 'CONNECTION_LOST': return 'text-zinc-500';
             default: return 'text-amber-500';
         }
@@ -101,6 +102,8 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
         switch (status) {
             case 'COMPLETED': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
             case 'FAILED': return <XCircle className="w-5 h-5 text-red-500" />;
+            case 'DESTROYING': return <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />;
+            case 'DESTROYED': return <Trash2 className="w-5 h-5 text-zinc-400" />;
             case 'CONNECTION_LOST': return <XCircle className="w-5 h-5 text-zinc-500" />;
             default: return <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />;
         }

@@ -22,7 +22,10 @@ export const deployService = {
     },
 
     async getHistory() {
-        const response = await apiClient.get('/deploy/history');
-        return response.data;
+        return apiClient.get('/deploy/history').then(res => res.data);
+    },
+
+    async destroyDeployment(deploymentId) {
+        return apiClient.post(`/deploy/${deploymentId}/destroy`).then(res => res.data);
     }
 };

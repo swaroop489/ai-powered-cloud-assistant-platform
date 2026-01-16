@@ -14,6 +14,26 @@ from app.dependencies import get_current_user
 
 router = APIRouter()
 
+# --- Destroy Workflow ---
+async def run_destroy_workflow(deployment_id: str, service: TerraformService):
+    """
+    Executes 'terraform destroy' and updates status.
+    """
+    try:
+        await status_update(deployment_id, "DESTROYING")
+        await log_update(deployment_id, "[DESTROY] Starting resource teardown...")
+        
+        await log_update(deployment_id, "[DESTROY] Running terraform destroy...")
+        async for line in service.destroy():
+            await log_update(deployment_id, f"[DESTROY] {line}")
+            
+        await status_update(deployment_id, "DESTROYED")
+        await log_update(deployment_id, "[DONE] Resources successfully destroyed.")
+        
+    except Exception as e:
+        await status_update(deployment_id, "DESTROY_FAILED")
+        await log_update(deployment_id, f"[ERROR] Destroy failed: {str(e)}")
+
 
 @router.post("/apply")
 async def apply_infrastructure(
@@ -66,6 +86,33 @@ async def apply_infrastructure(
         "deployment_id": deployment_id,
         "path": work_dir,
     }
+
+
+@router.post("/{deployment_id}/destroy")
+async def destroy_infrastructure(
+    deployment_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Trigger Terraform Destroy for a specific deployment.
+    """
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    # Security check: Ensure user owns this deployment
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to delete this deployment")
+
+    # Reconstruct work_dir 
+    work_dir = f"./deployments/{deployment['project_name']}-{deployment_id}"
+    
+    tf_service = TerraformService(work_dir)
+    
+    background_tasks.add_task(run_destroy_workflow, deployment_id, tf_service)
+    
+    return {"status": "destroy_started", "deployment_id": deployment_id}
 
 
 @router.get("/history")
