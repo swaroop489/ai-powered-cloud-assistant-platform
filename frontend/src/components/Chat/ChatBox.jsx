@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Sparkles, Server, Check } from 'lucide-react';
 import { aiService } from '../../api/aiService';
+import PlanCard from './PlanCard';
 
 const ChatBox = ({ onPlanApproved }) => {
     const [prompt, setPrompt] = useState('');
@@ -65,18 +66,12 @@ const ChatBox = ({ onPlanApproved }) => {
                 )}
 
                 {plan && (
-                    <div className="bg-white border border-zinc-200 rounded-lg p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2">
-                        <h4 className="font-medium text-zinc-900 mb-2">Proposed Infrastructure Plan</h4>
-                        <div className="bg-zinc-900 text-zinc-100 p-3 rounded-md text-sm font-mono overflow-x-auto max-h-60 mb-4">
-                            <pre>{JSON.stringify(plan, null, 2)}</pre>
-                        </div>
-                        <button
-                            onClick={handleApprove}
-                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium flex items-center justify-center gap-2 transition-colors"
-                        >
-                            <Check className="w-4 h-4" />
-                            Approve & Deploy
-                        </button>
+                    <div className="flex justify-center animate-in fade-in slide-in-from-bottom-2">
+                        <PlanCard
+                            plan={plan}
+                            onApprove={handleApprove}
+                            onReject={() => setPlan(null)}
+                        />
                     </div>
                 )}
             </div>
