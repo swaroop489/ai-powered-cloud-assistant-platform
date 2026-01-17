@@ -38,9 +38,9 @@ jobs:
           echo "SECRET_KEY=${{ secrets.BACKEND_SECRET }}" >> .env
           
           # 4. Inject Frontend Secret for Docker Build
-          # docker-compose.yml expects VITE_API_URL
-          export VITE_API_URL=${{ secrets.VITE_API_BASE_URL }}
+          # Source Code expects VITE_BACKEND_URL
+          export VITE_BACKEND_URL=${{ secrets.VITE_API_BASE_URL }}
           
           # 5. Start Containers
-          # Use -E to pass environment variables (VITE_API_URL) to sudo
+          # Use -E to pass environment variables (VITE_BACKEND_URL) to sudo
           sudo -E docker compose -f docker-compose.yml up -d --build
