@@ -1,11 +1,8 @@
-import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
-
-load_dotenv()
+from .config import settings
 
 # Ensure the MONGODB_URL includes the database name
-MONGODB_URL = os.getenv("MONGO_URI", "mongodb://localhost:27017/cloud_assistant_db")
+MONGODB_URL = settings.MONGODB_URL
 
 class Database:
     client: AsyncIOMotorClient = None

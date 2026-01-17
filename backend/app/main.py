@@ -11,10 +11,10 @@ if sys.platform == "win32":
 
 app = FastAPI()
 
+from .config import settings
+
 # Input list of origins that are allowed to make cross-origin requests
-origins = [
-    "http://localhost:5173", # Vite dev server
-]
+origins = settings.CORS_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,

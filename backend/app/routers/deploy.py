@@ -161,6 +161,10 @@ async def stream_logs(deployment_id: str):
             for log in deployment["logs"]:
                 yield f"data: {json.dumps({'log': log})}\n\n"
         
+        # 1.5 Send current status immediately (so refresh doesn't show 'Pending')
+        if deployment:
+             yield f"data: {json.dumps({'status': deployment.get('status', 'PENDING')})}\n\n"
+        
         # 2. Subscribe to new logs
         queue = await stream_manager.connect(deployment_id)
         try:
@@ -174,9 +178,9 @@ async def stream_logs(deployment_id: str):
                     yield f"data: {json.dumps({'status': status})}\n\n"
                     # If completed/failed, we can optionally close, but let's keep open for a bit
                     if status in ["COMPLETED", "FAILED"]:
-                        # Send a final close event if needed, or just let client handle it
-                        yield f"event: close\ndata: {json.dumps({'status': status})}\n\n"
-                        break 
+                        # Send a final status update but keep stream open for potential future actions (like destroy)
+                        # We do NOT break here anymore.
+                        pass 
                 else:
                     yield f"data: {json.dumps({'log': data})}\n\n"
         finally:

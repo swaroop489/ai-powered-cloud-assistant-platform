@@ -15,7 +15,8 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
         const streamLogs = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:8000/api/deploy/${deploymentId}/stream`, {
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+                const response = await fetch(`${backendUrl}/api/deploy/${deploymentId}/stream`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'text/event-stream',
