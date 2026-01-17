@@ -18,23 +18,17 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # 1. Setup App Directory
+          # 1. CLEANUP (Nuclear Option)
+          # Ensure a fresh start every time to prevent "exists" errors
+          sudo rm -rf ~/app
           mkdir -p ~/app
           cd ~/app
 
-          # 2. Clone/Pull latest code (We might need a deploy token or public repo)
-          # Use specific approach: Transfer files via SCP or Git Pull if public/auth setup
-          # Simplest for now: Git Pull
-          
+          # 2. Clone/Pull latest code
           if [ ! -d ".git" ]; then
-            # Clean up directory if it's not empty (e.g. failed previous clone)
-            rm -rf ./* .hidden* 2>/dev/null || true
-            
             # Private Repo: Clone with Token
-            # Using specific token to authenticate
             git clone https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }} .
           else
-            # Ensure remote url has latest token or just pull (remote includes token from clone)
             git pull origin main
           fi
 
