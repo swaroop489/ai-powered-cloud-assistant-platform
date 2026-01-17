@@ -38,7 +38,7 @@ services:
       target: prod # <--- Targeted Build for Production (Nginx)
       args:
         # Inject API URL at build time (Client-side)
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api/v1}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:8000}
     container_name: cloud_assistant_frontend_prod
     ports:
       - "80:80"
