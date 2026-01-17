@@ -23,7 +23,8 @@ export const AuthProvider = ({ children }) => {
             formData.append('username', email);
             formData.append('password', password);
 
-            const response = await fetch("http://localhost:8000/token", {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            const response = await fetch(`${backendUrl}/token`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
@@ -54,7 +55,8 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (email, password, fullName) => {
         try {
-            const response = await fetch("http://localhost:8000/register", {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            const response = await fetch(`${backendUrl}/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

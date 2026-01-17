@@ -14,4 +14,10 @@ tfplan
 # Logs
 *.log
 tf_cache
-*.json
+# Terraform JSON output (if any, be specific)
+# *.json 
+
+# Frontend Build
+frontend/dist/
+frontend/coverage/
+mock_plan.json

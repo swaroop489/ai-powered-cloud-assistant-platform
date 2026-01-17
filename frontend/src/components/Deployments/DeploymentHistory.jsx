@@ -105,8 +105,14 @@ const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
                                                 confirmText: "Destroy Resources",
                                                 onConfirm: () => {
                                                     deployService.destroyDeployment(deploy.deployment_id)
-                                                        .then(() => onSelectDeployment(deploy.deployment_id))
-                                                        .catch(err => console.error(err));
+                                                        .then(() => {
+                                                            fetchHistory(); // Refresh status icon
+                                                            onSelectDeployment(deploy.deployment_id);
+                                                        })
+                                                        .catch(err => {
+                                                            console.error(err);
+                                                            alert("Failed to destroy deployment. Check console for details.");
+                                                        });
                                                 }
                                             });
                                         }}

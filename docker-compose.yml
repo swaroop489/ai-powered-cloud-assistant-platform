@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # Backend (Production)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloud_assistant_backend_prod
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017/cloud_assistant
+      - SECRET_KEY=${SECRET_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+    env_file:
+      - .env
+    volumes:
+      # Persist Terraform deployments (State files)
+      - deployments_data:/app/deployments
+      # Persist Terraform cache (Plugins)
+      - terraform_cache:/app/tf_cache
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+
+  # ==========================================
+  # Frontend (Production)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod # <--- Targeted Build for Production (Nginx)
+      args:
+        # Inject API URL at build time (Client-side)
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api/v1}
+    container_name: cloud_assistant_frontend_prod
+    ports:
+      - "80:80"
+    volumes:
+      # Mount Nginx config
+      - ./devops/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # ==========================================
+  # Database (MongoDB)
+  # ==========================================
+  mongo:
+    image: mongo:6.0
+    container_name: cloud_assistant_mongo_prod
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+
+# ==========================================
+# Volumes & Networks
+# ==========================================
+volumes:
+  mongo_data:
+  deployments_data:
+  terraform_cache:
+
+networks:
+  app-network:
+    driver: bridge
