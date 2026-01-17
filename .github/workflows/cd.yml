@@ -1,0 +1,46 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Deploy to AWS EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST_IP }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # 1. Setup App Directory
+          mkdir -p ~/app
+          cd ~/app
+
+          # 2. Clone/Pull latest code (We might need a deploy token or public repo)
+          # Use specific approach: Transfer files via SCP or Git Pull if public/auth setup
+          # Simplest for now: Git Pull
+          
+          if [ ! -d ".git" ]; then
+            # Private Repo: Clone with Token
+            # Using specific token to authenticate
+            git clone https://${{ secrets.GH_PAT }}@github.com/${{ github.repository }} .
+          else
+            # Ensure remote url has latest token or just pull (remote includes token from clone)
+            git pull origin main
+          fi
+
+          # 3. Create .env file from Secrets
+          echo "MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_USER }}" > .env
+          echo "MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_PASS }}" >> .env
+          echo "SECRET_KEY=${{ secrets.BACKEND_SECRET }}" >> .env
+          # ... add other env vars ...
+
+          # 4. Start Containers
+          # Use the PROD docker-compose.yml
+          docker-compose -f docker-compose.yml up -d --build
