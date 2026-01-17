@@ -36,8 +36,11 @@ jobs:
           echo "MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_USER }}" > .env
           echo "MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_PASS }}" >> .env
           echo "SECRET_KEY=${{ secrets.BACKEND_SECRET }}" >> .env
-          # ... add other env vars ...
-
-          # 4. Start Containers
-          # Use the PROD docker-compose.yml
-          docker-compose -f docker-compose.yml up -d --build
+          
+          # 4. Inject Frontend Secret for Docker Build
+          # docker-compose.yml expects VITE_API_URL
+          export VITE_API_URL=${{ secrets.VITE_API_BASE_URL }}
+          
+          # 5. Start Containers
+          # Use -E to pass environment variables (VITE_API_URL) to sudo
+          sudo -E docker compose -f docker-compose.yml up -d --build
