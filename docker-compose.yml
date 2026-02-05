@@ -1,9 +1,4 @@
-version: '3.8'
-
 services:
-  # ==========================================
-  # Backend (Production)
-  # ==========================================
   backend:
     build:
       context: ./backend
@@ -19,40 +14,30 @@ services:
     env_file:
       - .env
     volumes:
-      # Persist Terraform deployments (State files)
       - deployments_data:/app/deployments
-      # Persist Terraform cache (Plugins)
       - terraform_cache:/app/tf_cache
     depends_on:
       - mongo
     networks:
       - app-network
 
-  # ==========================================
-  # Frontend (Production)
-  # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: prod # <--- Targeted Build for Production (Nginx)
+      target: prod 
       args:
-        # Inject API URL at build time (Client-side)
-        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:8000}
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost}
     container_name: cloud_assistant_frontend_prod
     ports:
       - "80:80"
     volumes:
-      # Mount Nginx config
       - ./devops/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
     networks:
       - app-network
 
-  # ==========================================
-  # Database (MongoDB)
-  # ==========================================
   mongo:
     image: mongo:6.0
     container_name: cloud_assistant_mongo_prod
@@ -60,10 +45,7 @@ services:
       - mongo_data:/data/db
     networks:
       - app-network
-
-# ==========================================
-# Volumes & Networks
-# ==========================================
+      
 volumes:
   mongo_data:
   deployments_data:

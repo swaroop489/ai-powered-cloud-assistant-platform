@@ -1,30 +1,16 @@
-version: '3.8'
-
 services:
-  # ==========================================
-  # Backend (Dev)
-  # ==========================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cloud_assistant_backend_dev
-    # Override CMD for hot-reloading
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    container_name: cloud_assistant_backend
     environment:
       - MONGODB_URL=mongodb://mongo:27017/cloud_assistant
     env_file:
       - ./backend/.env
     volumes:
-      # Mount code for hot-reloading
-      - ./backend:/app
-      # Persist Terraform user data
-      - deployments_data_dev:/app/deployments
-      # Persist Terraform cache
-      - terraform_cache_dev:/app/tf_cache
-      # Prevent host venv/cache from dirtying container
-      - /app/venv
-      - /app/__pycache__
+      - deployments_data:/app/deployments
+      - terraform_cache:/app/tf_cache
     ports:
       - "8000:8000"
     depends_on:
@@ -32,44 +18,37 @@ services:
     networks:
       - app-network
 
-  # ==========================================
-  # Frontend (Dev)
-  # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: dev  # <--- Targeted Build for Dev
-    container_name: cloud_assistant_frontend_dev
+      target: prod
+      args:
+        - VITE_BACKEND_URL=http://localhost
+    container_name: cloud_assistant_frontend
     volumes:
-      # Mount code for hot-reloading (Vite)
-      - ./frontend:/app
-      # Prevent host node_modules from overwriting container's
-      - /app/node_modules
+      - ./devops/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "5173:5173"
+      - "80:80"
     depends_on:
       - backend
     networks:
       - app-network
 
-  # ==========================================
-  # Database (MongoDB)
-  # ==========================================
   mongo:
     image: mongo:6.0
-    container_name: cloud_assistant_mongo_dev
+    container_name: cloud_assistant_mongo
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data_dev:/data/db
+      - cloud_assistant_mongo_data:/data/db
     networks:
       - app-network
 
 volumes:
-  mongo_data_dev:
-  deployments_data_dev:
-  terraform_cache_dev:
+  cloud_assistant_mongo_data:
+  deployments_data:
+  terraform_cache:
 
 networks:
   app-network:
