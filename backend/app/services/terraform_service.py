@@ -157,6 +157,54 @@ terraform {{
         async for line in self._run_command(cmd):
             yield line
 
+    async def validate_policy(self) -> AsyncGenerator[str, None]:
+        """
+        Policy-as-Code validation. Consumes 'terraform show -json tfplan'
+        and enforces security policies (e.g., no 0.0.0.0/0 on port 22).
+        """
+        yield "Evaluating Infrastructure Policies...\n"
+        
+        process = await asyncio.create_subprocess_exec(
+            "terraform", "show", "-json", "tfplan",
+            cwd=str(self.working_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, "terraform show")
+            
+        try:
+            plan_json = json.loads(stdout.decode('utf-8'))
+            resource_changes = plan_json.get("resource_changes", [])
+            
+            for rc in resource_changes:
+                if rc.get("type") == "aws_security_group":
+                    after = rc.get("change", {}).get("after", {})
+                    ingress_rules = after.get("ingress", [])
+                    # Handle both dict-based and list-based ingress rule blocks depending on TF version
+                    if not isinstance(ingress_rules, list):
+                        ingress_rules = [ingress_rules] if ingress_rules else []
+                        
+                    for rule in ingress_rules:
+                        if not rule: continue
+                        from_port = rule.get("from_port")
+                        to_port = rule.get("to_port")
+                        cidr_blocks = rule.get("cidr_blocks", [])
+                        
+                        if isinstance(from_port, int) and isinstance(to_port, int) and from_port <= 22 <= to_port:
+                            if "0.0.0.0/0" in cidr_blocks:
+                                error_msg = f"POLICY VIOLATION: Security Group '{rc.get('name')}' allows SSH (port 22) from 0.0.0.0/0."
+                                logger.error(error_msg)
+                                yield f"\n[POLICY FAILED] {error_msg}\n"
+                                raise RuntimeError("Infrastructure policy validation failed: 0.0.0.0/0 ingress on port 22 is forbidden.")
+                                
+            yield "All policies passed successfully.\n"
+            
+        except json.JSONDecodeError:
+            yield "Failed to parse Terraform plan JSON for policy evaluation.\n"
+
     async def apply(self) -> AsyncGenerator[str, None]:
         """Runs 'terraform apply'."""
         cmd = ["terraform", "apply", "-no-color", "-input=false", "-auto-approve", "tfplan"]

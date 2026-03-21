@@ -281,6 +281,15 @@ async def run_terraform_workflow(
             await log_update(deployment_id, f"[PLAN] {line}")
 
         # -----------------------------
+        # POLICY VALIDATION
+        # -----------------------------
+        await status_update(deployment_id, "VALIDATING_POLICY")
+        await log_update(deployment_id, "[POLICY] Running Policy-as-Code checks")
+
+        async for line in service.validate_policy():
+            await log_update(deployment_id, f"[POLICY] {line}")
+
+        # -----------------------------
         # APPLY
         # -----------------------------
         await status_update(deployment_id, "APPLYING")
