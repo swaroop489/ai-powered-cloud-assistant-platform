@@ -1,9 +1,12 @@
 import os
 from typing import List
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "default_insecure_secret")
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017/cloud_assistant")
+    MONGODB_URL: str = os.getenv("MONGO_URI", os.getenv("MONGODB_URL", "mongodb://localhost:27017/cloud_assistant"))
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # AWS Credentials
