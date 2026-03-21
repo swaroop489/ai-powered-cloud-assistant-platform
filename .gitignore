@@ -22,3 +22,6 @@ tf_cache
 frontend/dist/
 frontend/coverage/
 mock_plan.json
+
+
+doc_files
