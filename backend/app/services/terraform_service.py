@@ -115,6 +115,30 @@ class TerraformService:
         logger.info(f"Written main.tf to {file_path}")
         return str(file_path)
 
+    def write_backend_tf(self, deployment_id: str) -> str:
+        """Writes the generated backend config to backend.tf for remote state."""
+        bucket = os.getenv("TF_STATE_BUCKET", "ai-cloud-assistant-state-bucket")
+        table = os.getenv("TF_STATE_LOCK_TABLE", "ai-cloud-assistant-state-lock")
+        region = os.getenv("TF_STATE_REGION", "us-east-1")
+        
+        backend_content = f"""
+terraform {{
+  backend "s3" {{
+    bucket         = "{bucket}"
+    key            = "deployments/{deployment_id}/terraform.tfstate"
+    region         = "{region}"
+    dynamodb_table = "{table}"
+    encrypt        = true
+  }}
+}}
+"""
+        file_path = self.working_dir / "backend.tf"
+        with open(file_path, "w") as f:
+            f.write(backend_content)
+        
+        logger.info(f"Written backend.tf to {file_path}")
+        return str(file_path)
+
     async def init(self) -> AsyncGenerator[str, None]:
         """Runs 'terraform init'."""
         cmd = ["terraform", "init", "-no-color", "-input=false"]

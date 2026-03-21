@@ -73,6 +73,7 @@ async def apply_infrastructure(
     tf_service = TerraformService(work_dir)
     hcl_code = generate_hcl(plan)
     tf_service.write_main_tf(hcl_code)
+    tf_service.write_backend_tf(deployment_id)
 
     # Run Terraform async
     background_tasks.add_task(
@@ -109,6 +110,7 @@ async def destroy_infrastructure(
     work_dir = f"./deployments/{deployment['project_name']}-{deployment_id}"
     
     tf_service = TerraformService(work_dir)
+    tf_service.write_backend_tf(deployment_id)
     
     background_tasks.add_task(run_destroy_workflow, deployment_id, tf_service)
     
