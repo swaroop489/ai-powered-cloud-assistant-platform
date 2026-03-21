@@ -73,6 +73,7 @@ async def apply_infrastructure(
     tf_service = TerraformService(work_dir)
     hcl_code = generate_hcl(plan)
     tf_service.write_main_tf(hcl_code)
+    tf_service.write_backend_tf(deployment_id)
 
     # Run Terraform async
     background_tasks.add_task(
@@ -109,6 +110,7 @@ async def destroy_infrastructure(
     work_dir = f"./deployments/{deployment['project_name']}-{deployment_id}"
     
     tf_service = TerraformService(work_dir)
+    tf_service.write_backend_tf(deployment_id)
     
     background_tasks.add_task(run_destroy_workflow, deployment_id, tf_service)
     
@@ -137,8 +139,7 @@ async def get_deployment_history(current_user: dict = Depends(get_current_user))
 @router.get("/{deployment_id}")
 async def get_deployment_status(
     deployment_id: str,
-    # Optional: Enforce auth for status check too?
-    # current_user: dict = Depends(get_current_user) 
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Fetch deployment status and logs.
@@ -146,17 +147,32 @@ async def get_deployment_status(
     deployment = await db.db.deployments.find_one({"deployment_id": deployment_id}, {"_id": 0})
     if not deployment:
         raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to view this deployment")
+         
     return deployment
 
 
 @router.get("/{deployment_id}/stream")
-async def stream_logs(deployment_id: str):
+async def stream_logs(
+    deployment_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     """
     SSE Endpoint for real-time logs.
     """
+    # Security check: Ensure user owns this deployment
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to view this deployment logs")
+
     async def event_generator():
         # 1. Yield existing logs from MongoDB (Catch-up)
-        deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+        # deployment already fetched above
         if deployment and "logs" in deployment:
             for log in deployment["logs"]:
                 yield f"data: {json.dumps({'log': log})}\n\n"
@@ -265,6 +281,15 @@ async def run_terraform_workflow(
             await log_update(deployment_id, f"[PLAN] {line}")
 
         # -----------------------------
+        # POLICY VALIDATION
+        # -----------------------------
+        await status_update(deployment_id, "VALIDATING_POLICY")
+        await log_update(deployment_id, "[POLICY] Running Policy-as-Code checks")
+
+        async for line in service.validate_policy():
+            await log_update(deployment_id, f"[POLICY] {line}")
+
+        # -----------------------------
         # APPLY
         # -----------------------------
         await status_update(deployment_id, "APPLYING")
@@ -298,3 +323,15 @@ async def run_terraform_workflow(
             deployment_id,
             f"[ERROR] Deployment failed: {str(e)}",
         )
+        # Attempt Auto-Rollback if it failed during or after plan
+        await log_update(deployment_id, "[SYSTEM] Initiating automatic rollback to clean up partial state...")
+        await status_update(deployment_id, "ROLLING_BACK")
+        try:
+            async for line in service.destroy():
+                await log_update(deployment_id, f"[ROLLBACK] {line}")
+            await status_update(deployment_id, "ROLLBACK_COMPLETE")
+            await log_update(deployment_id, "[SYSTEM] Rollback completed successfully.")
+        except Exception as rb_e:
+            await status_update(deployment_id, "ROLLBACK_FAILED")
+            await log_update(deployment_id, f"[ERROR] Auto-rollback failed: {str(rb_e)}")
+

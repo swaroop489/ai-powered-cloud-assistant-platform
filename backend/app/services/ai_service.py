@@ -45,27 +45,20 @@ You MUST output ONLY valid JSON that strictly matches the provided schema.
 
 CRITICAL RULES (MANDATORY):
 1. The "type" field MUST be one of:
-   - "s3" (NOT s3_bucket, NOT aws_s3_bucket)
+   - "s3"
    - "ec2"
    - "rds"
    - "vpc"
 
 2. NEVER invent new type names.
-3. If the user asks for storage logs, use type = "s3".
-4. If the user asks for a server, use type = "ec2".
-5. If the user asks for a database, use type = "rds".
-6. Always prefer secure defaults.
-7. Do NOT include any explanation text, markdown, or comments.
-8. Output ONLY JSON.
-
-INVALID EXAMPLE (DO NOT DO THIS):
-"type": "s3_bucket"
-
-VALID EXAMPLE:
-"type": "s3"
+3. If the user asks for a server, use type = "ec2".
+4. If a 'github_repo_url' property is provided, you MUST include a bash script in the 'user_data' field of all 'ec2' instances. The script must auto-install git and docker, clone the Repo URL into /home/ubuntu/app, and run docker-compose up -d.
+5. Always prefer secure defaults.
+6. Do NOT include any explanation text, markdown, or comments.
+7. Output ONLY JSON.
 """,
                 ),
-                ("human", "{input}"),
+                ("human", "Prompt: {input}\nGitHub Repo URL: {github_repo_url}"),
             ]
         )
 
@@ -82,7 +75,7 @@ VALID EXAMPLE:
         return raw
 
 
-    def parse_intent(self, user_prompt: str) -> DeploymentRequest:
+    def parse_intent(self, user_prompt: str, github_repo_url: str = "") -> DeploymentRequest:
         """
         Converts natural language → validated DeploymentRequest
         """
@@ -90,7 +83,7 @@ VALID EXAMPLE:
             logger.info("Parsing infrastructure intent via AI")
 
             result: DeploymentRequest = self.chain.invoke(
-                {"input": user_prompt.strip()}
+                {"input": user_prompt.strip(), "github_repo_url": github_repo_url.strip()}
             )
 
             # -------------------------------
@@ -98,6 +91,9 @@ VALID EXAMPLE:
             # -------------------------------
             if not result.project_name:
                 result.project_name = "generated-infra-project"
+                
+            if github_repo_url and not result.github_repo_url:
+                result.github_repo_url = github_repo_url
 
             logger.info("AI intent parsed successfully")
             return result

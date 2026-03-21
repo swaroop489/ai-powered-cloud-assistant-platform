@@ -41,7 +41,7 @@ const PlanCard = ({ plan, onApprove, onReject }) => {
     // State to toggle raw JSON view
     const [showJson, setShowJson] = React.useState(false);
 
-    const cost = estimateCost(plan.resources || []);
+    const cost = plan.estimated_cost !== undefined ? parseFloat(plan.estimated_cost).toFixed(2) : estimateCost(plan.resources || []);
     const resourceCount = plan.resources?.length || 0;
 
     return (

@@ -5,6 +5,7 @@ import PlanCard from './PlanCard';
 
 const ChatBox = ({ onPlanApproved }) => {
     const [prompt, setPrompt] = useState('');
+    const [githubUrl, setGithubUrl] = useState('');
     const [plan, setPlan] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -18,7 +19,7 @@ const ChatBox = ({ onPlanApproved }) => {
         setPlan(null);
 
         try {
-            const result = await aiService.generatePlan(prompt);
+            const result = await aiService.generatePlan(prompt, githubUrl);
             setPlan(result);
         } catch (err) {
             setError("Failed to generate plan. Please try again.");
@@ -78,22 +79,32 @@ const ChatBox = ({ onPlanApproved }) => {
 
             {/* Input Area */}
             <div className="p-3 bg-white border-t border-zinc-100">
-                <form onSubmit={handleSubmit} className="flex gap-2">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-2">
                     <input
-                        type="text"
-                        className="flex-1 px-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-400"
-                        placeholder="E.g., Deploy an ECS cluster with 2 t3.micro instances..."
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
+                        type="url"
+                        className="w-full px-4 py-2 border border-zinc-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-400"
+                        placeholder="Optional: Provide a GitHub Repo URL to deploy on the servers"
+                        value={githubUrl}
+                        onChange={(e) => setGithubUrl(e.target.value)}
                         disabled={loading}
                     />
-                    <button
-                        type="submit"
-                        disabled={loading || !prompt.trim()}
-                        className="px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            className="flex-1 px-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-zinc-400"
+                            placeholder="E.g., Deploy an ECS cluster with 2 t3.micro instances..."
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            disabled={loading}
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading || !prompt.trim()}
+                            className="px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
