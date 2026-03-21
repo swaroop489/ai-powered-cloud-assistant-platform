@@ -314,3 +314,15 @@ async def run_terraform_workflow(
             deployment_id,
             f"[ERROR] Deployment failed: {str(e)}",
         )
+        # Attempt Auto-Rollback if it failed during or after plan
+        await log_update(deployment_id, "[SYSTEM] Initiating automatic rollback to clean up partial state...")
+        await status_update(deployment_id, "ROLLING_BACK")
+        try:
+            async for line in service.destroy():
+                await log_update(deployment_id, f"[ROLLBACK] {line}")
+            await status_update(deployment_id, "ROLLBACK_COMPLETE")
+            await log_update(deployment_id, "[SYSTEM] Rollback completed successfully.")
+        except Exception as rb_e:
+            await status_update(deployment_id, "ROLLBACK_FAILED")
+            await log_update(deployment_id, f"[ERROR] Auto-rollback failed: {str(rb_e)}")
+
