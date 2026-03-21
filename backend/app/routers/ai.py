@@ -11,6 +11,7 @@ pricing_service = PricingService()
 
 class PromptRequest(BaseModel):
     message: str
+    github_repo_url: Optional[str] = None
 
 
 @router.post("/plan", response_model=DeploymentRequest)
@@ -21,7 +22,7 @@ async def generate_plan(request: PromptRequest):
     We return a validated JSON infrastructure plan.
     """
     try:
-        plan = ai_service.parse_intent(request.message)
+        plan = ai_service.parse_intent(request.message, request.github_repo_url or "")
         plan.estimated_cost = pricing_service.estimate_cost(plan)
         return plan
     except Exception as e:

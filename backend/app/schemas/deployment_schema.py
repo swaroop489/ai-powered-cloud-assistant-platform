@@ -105,6 +105,11 @@ class EC2InstanceSchema(BaseResource):
         description="Explicit list of ports to open in security group"
     )
 
+    user_data: Optional[str] = Field(
+        None,
+        description="Cloud-init script (user_data) to configure the instance on boot"
+    )
+
 
 class RDSInstanceSchema(BaseResource):
     type: Literal["rds"] = "rds"
@@ -200,6 +205,11 @@ class DeploymentRequest(BaseModel):
     estimated_cost: Optional[float] = Field(
         0.0,
         description="Estimated monthly total cost in USD"
+    )
+
+    github_repo_url: Optional[str] = Field(
+        None,
+        description="Optional Git repository URL to deploy on instances"
     )
 
     # -----------------------------------------------------
