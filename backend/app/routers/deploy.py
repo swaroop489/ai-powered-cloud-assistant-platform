@@ -137,8 +137,7 @@ async def get_deployment_history(current_user: dict = Depends(get_current_user))
 @router.get("/{deployment_id}")
 async def get_deployment_status(
     deployment_id: str,
-    # Optional: Enforce auth for status check too?
-    # current_user: dict = Depends(get_current_user) 
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Fetch deployment status and logs.
@@ -146,17 +145,32 @@ async def get_deployment_status(
     deployment = await db.db.deployments.find_one({"deployment_id": deployment_id}, {"_id": 0})
     if not deployment:
         raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to view this deployment")
+         
     return deployment
 
 
 @router.get("/{deployment_id}/stream")
-async def stream_logs(deployment_id: str):
+async def stream_logs(
+    deployment_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     """
     SSE Endpoint for real-time logs.
     """
+    # Security check: Ensure user owns this deployment
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to view this deployment logs")
+
     async def event_generator():
         # 1. Yield existing logs from MongoDB (Catch-up)
-        deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+        # deployment already fetched above
         if deployment and "logs" in deployment:
             for log in deployment["logs"]:
                 yield f"data: {json.dumps({'log': log})}\n\n"
