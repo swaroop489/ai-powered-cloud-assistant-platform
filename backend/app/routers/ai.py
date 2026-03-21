@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
+from typing import Optional
 from app.schemas.deployment_schema import DeploymentRequest
 from app.services.ai_service import AIService
 from app.services.pricing_service import PricingService
