@@ -197,6 +197,11 @@ class DeploymentRequest(BaseModel):
         description="List of infrastructure resources"
     )
 
+    estimated_cost: Optional[float] = Field(
+        0.0,
+        description="Estimated monthly total cost in USD"
+    )
+
     # -----------------------------------------------------
     # VALIDATION RULES (ENTERPRISE-GRADE SAFETY)
     # -----------------------------------------------------

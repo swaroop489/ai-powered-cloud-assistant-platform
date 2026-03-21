@@ -3,10 +3,11 @@ from pydantic import BaseModel
 
 from app.schemas.deployment_schema import DeploymentRequest
 from app.services.ai_service import AIService
+from app.services.pricing_service import PricingService
 
 router = APIRouter()
 ai_service = AIService()
-
+pricing_service = PricingService()
 
 class PromptRequest(BaseModel):
     message: str
@@ -20,6 +21,8 @@ async def generate_plan(request: PromptRequest):
     We return a validated JSON infrastructure plan.
     """
     try:
-        return ai_service.parse_intent(request.message)
+        plan = ai_service.parse_intent(request.message)
+        plan.estimated_cost = pricing_service.estimate_cost(plan)
+        return plan
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
