@@ -10,28 +10,22 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     def __init__(self):
-        # -------------------------------
-        # MODEL SELECTION
-        # -------------------------------
+
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
              raise RuntimeError("No valid AI API key found (GOOGLE_API_KEY)")
 
         if api_key:
             self.llm = ChatGoogleGenerativeAI(
-                model="gemini-flash-latest",  # <--- CRITICAL FIX FOR YOUR ACCOUNT
-                google_api_key=api_key,    # Explicitly pass the key
+                model="gemini-flash-latest",  
+                google_api_key=api_key, 
                 temperature=0,
                 convert_system_message_to_human=True,
                 timeout=30,
                 max_retries=1,
             )
             logger.info("AI Service initialized with Gemini 2.0 Flash")
-
-        # -------------------------------
-        # STRUCTURED OUTPUT ENFORCEMENT
-        # -------------------------------
-        # This tells LangChain: "Force the LLM to output ONLY this Pydantic schema"
+        
         self.structured_llm = self.llm.with_structured_output(DeploymentRequest)
 
         self.prompt = ChatPromptTemplate.from_messages(
@@ -86,9 +80,7 @@ CRITICAL RULES (MANDATORY):
                 {"input": user_prompt.strip(), "github_repo_url": github_repo_url.strip()}
             )
 
-            # -------------------------------
             # POST-VALIDATION SAFETY
-            # -------------------------------
             if not result.project_name:
                 result.project_name = "generated-infra-project"
                 

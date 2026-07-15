@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import connect_to_mongo, close_mongo_connection
 from .routers import auth
-from app.routers import ai, deploy
+from app.routers import ai, deploy, telemetry, metrics
+from app.events.startup import startup_db_client
+from app.events.shutdown import shutdown_db_client
 import sys
 import asyncio
 
@@ -13,7 +15,6 @@ app = FastAPI()
 
 from .config import settings
 
-# Input list of origins that are allowed to make cross-origin requests
 origins = settings.CORS_ORIGINS
 
 app.add_middleware(
@@ -26,21 +27,14 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
-@app.on_event("startup")
-async def startup_db_client():
-    await connect_to_mongo()
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    await close_mongo_connection()
+app.add_event_handler("startup", startup_db_client)
+app.add_event_handler("shutdown", shutdown_db_client)
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to AI-Powered Cloud Assistant Platform Backend"}
 
-
-
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(deploy.router, prefix="/api/deploy", tags=["Deployment"])
-
-
+app.include_router(metrics.router, prefix="/api/metrics", tags=["Metrics"])
+app.include_router(telemetry.router, prefix="/api/telemetry", tags=["Telemetry"])

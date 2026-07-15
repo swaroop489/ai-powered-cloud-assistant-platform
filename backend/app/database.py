@@ -1,7 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from .config import settings
 
-# Ensure the MONGODB_URL includes the database name
 MONGODB_URL = settings.MONGODB_URL
 
 class Database:
@@ -15,7 +14,6 @@ async def get_database():
 
 async def connect_to_mongo():
     db.client = AsyncIOMotorClient(MONGODB_URL)
-    # get_default_database() uses the database specified in the connection string
     db.db = db.client.get_default_database()
     print(f"Connected to MongoDB")
 

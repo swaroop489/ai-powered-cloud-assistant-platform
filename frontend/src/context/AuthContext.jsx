@@ -8,8 +8,6 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         if (token) {
-            // Simple decode or fetch profile. For now, assume token persists implies user is logged in
-            // A real app would verify token validity or fetch /me
             const storedUser = localStorage.getItem("user");
             if (storedUser) {
                 setUser(JSON.parse(storedUser));
@@ -40,8 +38,6 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem("token", data.access_token);
             setToken(data.access_token);
 
-            // For this simple implementation, we'll set user with email. 
-            // Ideally we fetch user profile after login using the token.
             const userData = { email: email, name: email.split("@")[0] };
             localStorage.setItem("user", JSON.stringify(userData));
             setUser(userData);

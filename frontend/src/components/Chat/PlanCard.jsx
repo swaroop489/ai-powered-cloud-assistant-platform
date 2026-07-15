@@ -24,24 +24,15 @@ const getResourceIcon = (type) => {
     return <Box className="w-4 h-4 text-zinc-400" />;
 };
 
-// --- Mock Cost Estimation Logic ---
-const estimateCost = (resources) => {
-    let total = 0;
-    resources.forEach(r => {
-        if (r.type.includes('instance')) total += 25.00; // Mock EC2 cost
-        if (r.type.includes('rds')) total += 45.00;      // Mock RDS cost
-        if (r.type.includes('s3')) total += 5.00;        // Mock S3 cost
-    });
-    return total.toFixed(2);
-};
-
 const PlanCard = ({ plan, onApprove, onReject }) => {
     if (!plan) return null;
 
     // State to toggle raw JSON view
     const [showJson, setShowJson] = React.useState(false);
 
-    const cost = plan.estimated_cost !== undefined ? parseFloat(plan.estimated_cost).toFixed(2) : estimateCost(plan.resources || []);
+    const cost = plan.estimated_cost !== undefined && plan.estimated_cost !== null 
+        ? parseFloat(plan.estimated_cost).toFixed(2) 
+        : "0.00";
     const resourceCount = plan.resources?.length || 0;
 
     return (

@@ -2,14 +2,8 @@ from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
-
-
-# ENUMS — STRICT CONSTRAINTS (ANTI-HALLUCINATION)
-
-
 class CloudProvider(str, Enum):
     AWS = "aws"
-
 
 class AWSRegion(str, Enum):
     US_EAST_1 = "us-east-1"
@@ -31,20 +25,12 @@ class DBEngine(str, Enum):
     POSTGRES = "postgres"
     MYSQL = "mysql"
 
-
-
-# TAGS — CONSTRAINED (NO FREE-FORM GARBAGE)
-
-
 class Tags(BaseModel):
     project: Optional[str] = Field(None, description="Project identifier")
     environment: Optional[str] = Field(None, description="Deployment environment")
     owner: Optional[str] = Field(None, description="Resource owner")
 
-
-
 # BASE RESOURCE
-
 
 class BaseResource(BaseModel):
     """Base class for all infrastructure resources."""
@@ -57,10 +43,7 @@ class BaseResource(BaseModel):
         description="Optional AWS tags"
     )
 
-
-
 # RESOURCE-SPECIFIC SCHEMAS
-
 
 class S3BucketSchema(BaseResource):
     type: Literal["s3"] = "s3"
@@ -156,10 +139,7 @@ class VPCSchema(BaseResource):
         description="Enable NAT Gateway for private subnets (costly)"
     )
 
-
-
 # POLYMORPHIC RESOURCE UNION
-
 
 ResourceUnion = Union[
     S3BucketSchema,
@@ -168,10 +148,7 @@ ResourceUnion = Union[
     VPCSchema,
 ]
 
-
-
-# MAIN DEPLOYMENT REQUEST (AI OUTPUT CONTRACT)
-
+# MAIN DEPLOYMENT REQUEST 
 
 class DeploymentRequest(BaseModel):
     project_name: str = Field(
@@ -212,9 +189,6 @@ class DeploymentRequest(BaseModel):
         description="Optional Git repository URL to deploy on instances"
     )
 
-    # -----------------------------------------------------
-    # VALIDATION RULES (ENTERPRISE-GRADE SAFETY)
-    # -----------------------------------------------------
 
     @model_validator(mode="after")
     def validate_single_vpc(self):

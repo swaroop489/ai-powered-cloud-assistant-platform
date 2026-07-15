@@ -55,8 +55,6 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
                                 } else if (data.status) {
                                     setStatus(data.status);
                                     if (['COMPLETED', 'FAILED'].includes(data.status)) {
-                                        // Optional: Close stream if backend doesn't
-                                        // controller.abort(); 
                                     }
                                 }
                             } catch (e) {

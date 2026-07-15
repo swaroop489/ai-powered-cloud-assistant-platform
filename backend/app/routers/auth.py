@@ -2,14 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta
 from ..database import get_database, db
-from ..models.user import UserCreate, Token, User
+from ..schemas.user_schema import UserCreate, Token, UserResponse
 from ..utils.auth import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from datetime import datetime
 
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-@router.post("/register", response_model=User)
+@router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
     existing_user = await db.db.users.find_one({"email": user.email})
     if existing_user:
@@ -21,9 +22,18 @@ async def register(user: UserCreate):
     user_dict = user.dict()
     user_dict["hashed_password"] = hashed_password
     del user_dict["password"]
+    user_dict["created_at"] = datetime.utcnow()
+    user_dict["is_active"] = True
     
-    await db.db.users.insert_one(user_dict)
-    return user
+    result = await db.db.users.insert_one(user_dict)
+    
+    return UserResponse(
+        id=str(result.inserted_id),
+        email=user.email,
+        full_name=user.full_name,
+        created_at=user_dict["created_at"],
+        is_active=True
+    )
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):

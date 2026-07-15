@@ -14,7 +14,7 @@ from app.dependencies import get_current_user
 
 router = APIRouter()
 
-# --- Destroy Workflow ---
+# Destroy Workflow 
 async def run_destroy_workflow(deployment_id: str, service: TerraformService):
     """
     Executes 'terraform destroy' and updates status.
@@ -48,9 +48,9 @@ async def apply_infrastructure(
     deployment_id = str(uuid.uuid4())[:8]
     work_dir = f"./deployments/{plan.project_name}-{deployment_id}"
 
-    # -----------------------------
+   
     # Create DB Record
-    # -----------------------------
+
     deployment_doc = {
         "deployment_id": deployment_id,
         "user_id": str(current_user["_id"]), 
@@ -67,9 +67,9 @@ async def apply_infrastructure(
 
     await db.db.deployments.insert_one(deployment_doc)
 
-    # -----------------------------
+   
     # Terraform Setup
-    # -----------------------------
+   
     tf_service = TerraformService(work_dir)
     hcl_code = generate_hcl(plan)
     tf_service.write_main_tf(hcl_code)
@@ -171,31 +171,23 @@ async def stream_logs(
          raise HTTPException(status_code=403, detail="Not authorized to view this deployment logs")
 
     async def event_generator():
-        # 1. Yield existing logs from MongoDB (Catch-up)
-        # deployment already fetched above
         if deployment and "logs" in deployment:
             for log in deployment["logs"]:
                 yield f"data: {json.dumps({'log': log})}\n\n"
         
-        # 1.5 Send current status immediately (so refresh doesn't show 'Pending')
         if deployment:
              yield f"data: {json.dumps({'status': deployment.get('status', 'PENDING')})}\n\n"
         
-        # 2. Subscribe to new logs
         queue = await stream_manager.connect(deployment_id)
         try:
             while True:
                 # Wait for new log
                 data = await queue.get()
                 
-                # Check for special status messages or just pure logs
                 if data.startswith("STATUS:"):
                     status = data.split(":", 1)[1]
                     yield f"data: {json.dumps({'status': status})}\n\n"
-                    # If completed/failed, we can optionally close, but let's keep open for a bit
                     if status in ["COMPLETED", "FAILED"]:
-                        # Send a final status update but keep stream open for potential future actions (like destroy)
-                        # We do NOT break here anymore.
                         pass 
                 else:
                     yield f"data: {json.dumps({'log': data})}\n\n"
@@ -205,9 +197,8 @@ async def stream_logs(
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-# =====================================================
+
 # Helper Functions
-# =====================================================
 
 async def log_update(deployment_id: str, message: str):
     """
@@ -249,9 +240,9 @@ async def status_update(deployment_id: str, status: str):
     await stream_manager.broadcast(deployment_id, f"STATUS:{status}")
 
 
-# =====================================================
+
 # Terraform Lifecycle Runner
-# =====================================================
+
 
 async def run_terraform_workflow(
     deployment_id: str,
@@ -262,45 +253,45 @@ async def run_terraform_workflow(
     Streams logs + updates state in MongoDB
     """
     try:
-        # -----------------------------
+       
         # INIT
-        # -----------------------------
+       
         await status_update(deployment_id, "INITIALIZING")
         await log_update(deployment_id, "[INIT] Terraform initialization started")
 
         async for line in service.init():
             await log_update(deployment_id, f"[INIT] {line}")
 
-        # -----------------------------
+       
         # PLAN
-        # -----------------------------
+       
         await status_update(deployment_id, "PLANNING")
         await log_update(deployment_id, "[PLAN] Terraform planning started")
 
         async for line in service.plan():
             await log_update(deployment_id, f"[PLAN] {line}")
 
-        # -----------------------------
+       
         # POLICY VALIDATION
-        # -----------------------------
+       
         await status_update(deployment_id, "VALIDATING_POLICY")
         await log_update(deployment_id, "[POLICY] Running Policy-as-Code checks")
 
         async for line in service.validate_policy():
             await log_update(deployment_id, f"[POLICY] {line}")
 
-        # -----------------------------
+       
         # APPLY
-        # -----------------------------
+       
         await status_update(deployment_id, "APPLYING")
         await log_update(deployment_id, "[APPLY] Terraform apply started")
 
         async for line in service.apply():
             await log_update(deployment_id, f"[APPLY] {line}")
 
-        # -----------------------------
+       
         # OUTPUTS
-        # -----------------------------
+       
         try:
             outputs = await service.get_outputs()
         except Exception:
@@ -310,10 +301,7 @@ async def run_terraform_workflow(
             {"deployment_id": deployment_id},
             {"$set": {"terraform_outputs": outputs}},
         )
-
-        # -----------------------------
-        # DONE
-        # -----------------------------
+       
         await status_update(deployment_id, "COMPLETED")
         await log_update(deployment_id, "[DONE] Deployment completed successfully")
 

@@ -3,7 +3,6 @@ import { X, AlertTriangle } from 'lucide-react';
 
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", isDangerous = false }) => {
 
-    // Close on escape key
     useEffect(() => {
         const handleEsc = (e) => {
             if (e.key === 'Escape') onClose();

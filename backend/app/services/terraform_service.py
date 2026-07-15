@@ -45,12 +45,7 @@ class TerraformService:
         This prevents re-downloading 300MB+ of AWS providers for every deployment.
         """
         env = os.environ.copy()
-        
-        # 1. Define a central cache directory (backend/tf_cache)
-        # using .parent.parent to go up from 'services' to 'backend' root
         cache_dir = Path(__file__).parent.parent.parent / "tf_cache"
-        
-        # 2. Ensure it exists
         cache_dir.mkdir(parents=True, exist_ok=True)
         
         # 3. Tell Terraform to use it
@@ -69,10 +64,7 @@ class TerraformService:
             process = await asyncio.create_subprocess_exec(
                 *command_args,
                 cwd=str(self.working_dir),
-                
-                # CRITICAL: Inject the cache environment variables
                 env=self._get_env_vars(),
-                
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 limit=1024 * 128
@@ -101,10 +93,6 @@ class TerraformService:
             yield f"\n[SYSTEM ERROR] {str(e)}\n"
             logger.exception("Unexpected error during Terraform execution")
             raise
-
-    # =========================================================================
-    # PUBLIC METHODS
-    # =========================================================================
 
     def write_main_tf(self, hcl_content: str) -> str:
         """Writes the generated HCL code to main.tf."""
@@ -222,7 +210,6 @@ terraform {{
         Retrieves and normalizes Terraform output values.
         Returns: {'public_ip': '1.2.3.4'} instead of nested objects.
         """
-        # If no state file exists, return empty
         if not (self.working_dir / "terraform.tfstate").exists():
             return {}
 
@@ -241,10 +228,6 @@ terraform {{
 
         try:
             raw_outputs = json.loads(stdout.decode())
-            
-            # Normalize: Extract just the 'value' from the Terraform output structure
-            # Example Raw: {"ip": {"sensitive": false, "type": "string", "value": "1.2.3.4"}}
-            # Example Clean: {"ip": "1.2.3.4"}
             normalized_outputs = {
                 key: value.get("value")
                 for key, value in raw_outputs.items()

@@ -36,9 +36,6 @@ class LogStreamManager:
         Push a message to all active clients for this deployment.
         """
         if deployment_id in self.active_connections:
-            # Create a list of put operations
-            # We use no-wait put because queues are unbounded for now
-            # In production, you might want to handle full queues
             for queue in self.active_connections[deployment_id]:
                 await queue.put(message)
 
