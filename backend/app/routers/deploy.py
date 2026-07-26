@@ -7,6 +7,7 @@ import json
 
 from app.schemas.deployment_schema import DeploymentRequest
 from app.services.terraform_service import TerraformService
+from app.services.pricing_service import PricingService
 from app.services.stream_manager import stream_manager
 from app.utils.codegen import generate_hcl
 from app.database import db
@@ -47,6 +48,15 @@ async def apply_infrastructure(
     """
     deployment_id = str(uuid.uuid4())[:8]
     work_dir = f"./deployments/{plan.project_name}-{deployment_id}"
+
+    # FinOps Circuit Breaker
+    pricing_service = PricingService()
+    estimated_cost = pricing_service.estimate_cost(plan)
+    if estimated_cost > 50.0:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"FinOps Circuit Breaker Triggered: Estimated monthly cost (${estimated_cost}) exceeds the $50.00 security limit."
+        )
 
    
     # Create DB Record

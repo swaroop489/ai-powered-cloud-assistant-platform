@@ -31,7 +31,7 @@ const MetricsDashboard = () => {
             title: "Total Deployments",
             value: metrics.total_deployments,
             icon: <Layers className="w-6 h-6 text-indigo-500" />,
-            trend: "+12% this week",
+            trend: "All time",
             trendUp: true,
             bg: "bg-indigo-50/50",
             border: "border-indigo-100"
@@ -40,7 +40,7 @@ const MetricsDashboard = () => {
             title: "Success Rate",
             value: `${metrics.success_rate}%`,
             icon: <CheckCircle className="w-6 h-6 text-emerald-500" />,
-            trend: "Target: > 95%",
+            trend: "All time",
             trendUp: metrics.success_rate >= 95,
             bg: "bg-emerald-50/50",
             border: "border-emerald-100"
@@ -49,7 +49,7 @@ const MetricsDashboard = () => {
             title: "Avg Deploy Time",
             value: `${metrics.avg_deploy_time}s`,
             icon: <Clock className="w-6 h-6 text-amber-500" />,
-            trend: "Optimized via cache",
+            trend: "All time",
             trendUp: true,
             bg: "bg-amber-50/50",
             border: "border-amber-100"
@@ -58,7 +58,7 @@ const MetricsDashboard = () => {
             title: "Total Failures",
             value: metrics.total_failed,
             icon: <XCircle className="w-6 h-6 text-red-500" />,
-            trend: "Auto-rollbacks enabled",
+            trend: "All time",
             trendUp: false,
             bg: "bg-red-50/50",
             border: "border-red-100"
@@ -118,41 +118,6 @@ const MetricsDashboard = () => {
                     </motion.div>
                 ))}
             </div>
-
-            {/* Simulated Chart Area for aesthetics */}
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="mt-8 p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm"
-            >
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h3 className="text-lg font-semibold text-zinc-800">Deployment Velocity</h3>
-                        <p className="text-sm text-zinc-500">Infrastructure changes over the last 30 days</p>
-                    </div>
-                    <div className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100">
-                        Stable
-                    </div>
-                </div>
-                <div className="h-64 w-full flex items-end justify-between gap-2 px-2">
-                    {/* Generating fake bars to simulate a beautiful chart without adding chart.js dependency */}
-                    {[40, 25, 60, 30, 80, 45, 90, 65, 75, 50, 85, 40, 70, 55].map((height, i) => (
-                        <div key={i} className="w-full bg-zinc-50 rounded-t-sm relative group h-full flex items-end">
-                            <motion.div 
-                                initial={{ height: 0 }}
-                                animate={{ height: `${height}%` }}
-                                transition={{ delay: 0.5 + (i * 0.05), duration: 0.8, type: 'spring' }}
-                                className="w-full bg-indigo-100 hover:bg-indigo-500 transition-colors rounded-t-md relative"
-                            >
-                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {height}
-                                </div>
-                            </motion.div>
-                        </div>
-                    ))}
-                </div>
-            </motion.div>
         </div>
     );
 };

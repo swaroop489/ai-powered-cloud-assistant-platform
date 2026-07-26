@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import ChatBox from '../../components/Chat/ChatBox';
 import DeploymentStatus from '../../components/Deployments/DeploymentStatus';
 import DeploymentHistory from '../../components/Deployments/DeploymentHistory';
@@ -7,8 +8,10 @@ import { deployService } from '../../api/deployService';
 const AgentConsole = () => {
     const [viewState, setViewState] = useState('chat'); // 'chat' | 'logs'
     const [deploymentId, setDeploymentId] = useState(null);
+    const [deployError, setDeployError] = useState(null);
 
     const handlePlanApproved = async (plan) => {
+        setDeployError(null);
         try {
             // 1. Start the deployment
             const response = await deployService.startDeployment(plan);
@@ -18,6 +21,8 @@ const AgentConsole = () => {
             setViewState('logs');
         } catch (error) {
             console.error("Deployment failed to start", error);
+            const msg = error.response?.data?.detail || error.message || "Failed to start deployment.";
+            setDeployError(msg);
         }
     };
 
@@ -26,7 +31,16 @@ const AgentConsole = () => {
             <div className="max-w-5xl mx-auto h-full grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Main Interface Area */}
-                <div className="lg:col-span-2 h-full flex flex-col">
+                <div className="lg:col-span-2 h-full flex flex-col gap-4">
+                    {deployError && (
+                        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+                            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-semibold text-sm">Deployment Blocked</h4>
+                                <p className="text-sm mt-1">{deployError}</p>
+                            </div>
+                        </div>
+                    )}
                     {viewState === 'chat' ? (
                         <ChatBox onPlanApproved={handlePlanApproved} />
                     ) : (

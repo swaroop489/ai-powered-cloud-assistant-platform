@@ -1,10 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Terminal, CheckCircle, XCircle, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Loader2, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { deployService } from '../../api/deployService';
 
 const DeploymentStatus = ({ deploymentId, onClose }) => {
     const [logs, setLogs] = useState([]);
     const [status, setStatus] = useState('pending');
+    const [activeTab, setActiveTab] = useState('logs');
+    const [outputs, setOutputs] = useState(null);
     const logEndRef = useRef(null);
+
+    useEffect(() => {
+        if (['COMPLETED', 'DRIFT_DETECTED'].includes(status) && deploymentId) {
+            deployService.getDeploymentStatus(deploymentId).then(data => {
+                if (data.terraform_outputs && Object.keys(data.terraform_outputs).length > 0) {
+                    setOutputs(data.terraform_outputs);
+                }
+            }).catch(err => console.error("Failed to fetch outputs", err));
+        }
+    }, [status, deploymentId]);
 
     useEffect(() => {
         if (!deploymentId) return;
@@ -195,18 +208,67 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
                 </div>
             </div>
 
-            {/* Log Output */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-1 text-sm scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
-                {logs.length === 0 && (
-                    <div className="text-zinc-600 italic">Connecting to live log stream...</div>
+            {/* Tabs */}
+            <div className="bg-zinc-900 border-b border-zinc-800 flex items-center px-4">
+                <button
+                    onClick={() => setActiveTab('logs')}
+                    className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'logs' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                >
+                    Terminal Logs
+                </button>
+                {outputs && (
+                    <button
+                        onClick={() => setActiveTab('outputs')}
+                        className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'outputs' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 flex items-center gap-2'}`}
+                    >
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live Outputs
+                    </button>
                 )}
-                {logs.map((log, index) => (
-                    <div key={index} className="break-all whitespace-pre-wrap font-mono">
-                        {log}
-                    </div>
-                ))}
-                <div ref={logEndRef} />
             </div>
+
+            {/* Body */}
+            {activeTab === 'logs' ? (
+                <div className="flex-1 p-4 overflow-y-auto space-y-1 text-sm scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">
+                    {logs.length === 0 && (
+                        <div className="text-zinc-600 italic">Connecting to live log stream...</div>
+                    )}
+                    {logs.map((log, index) => (
+                        <div key={index} className="break-all whitespace-pre-wrap font-mono">
+                            {log}
+                        </div>
+                    ))}
+                    <div ref={logEndRef} />
+                </div>
+            ) : (
+                <div className="flex-1 p-6 overflow-y-auto bg-zinc-950">
+                    <h3 className="text-zinc-300 font-medium mb-4 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        Provisioned Resources
+                    </h3>
+                    <div className="space-y-4">
+                        {Object.entries(outputs || {}).map(([key, val]) => (
+                            <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 transition-all hover:border-zinc-700">
+                                <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-2">{key.replace(/_/g, ' ')}</p>
+                                <div className="flex items-center justify-between">
+                                    <code className="text-emerald-400 font-mono text-sm break-all">{val.value}</code>
+                                    {val.value && val.value.toString().startsWith('http') && (
+                                        <a 
+                                            href={val.value} 
+                                            target="_blank" 
+                                            rel="noreferrer" 
+                                            className="ml-4 text-indigo-400 hover:text-indigo-300 p-2 bg-indigo-500/10 rounded-md transition-colors flex-shrink-0"
+                                            title="Open Link"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
