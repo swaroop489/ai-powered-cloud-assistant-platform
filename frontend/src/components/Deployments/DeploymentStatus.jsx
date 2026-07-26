@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Terminal, CheckCircle, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 const DeploymentStatus = ({ deploymentId, onClose }) => {
     const [logs, setLogs] = useState([]);
@@ -101,13 +101,33 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
         }
     };
 
+    const handleReconcile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+            setLogs(prev => [...prev, `\n[SYSTEM] Initiating Drift Reconciliation...`]);
+            setStatus('RECONCILING');
+            await fetch(`${backendUrl}/api/deploy/${deploymentId}/reconcile`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+        } catch (e) {
+            console.error("Reconcile failed", e);
+            setLogs(prev => [...prev, `\n[SYSTEM] Reconciliation Failed: ${e.message}`]);
+        }
+    };
+
     const getStatusColor = () => {
         switch (status) {
             case 'COMPLETED': return 'text-emerald-500';
             case 'FAILED': return 'text-red-500';
+            case 'DRIFT_DETECTED': return 'text-red-600 animate-pulse font-bold';
             case 'DESTROYING': return 'text-orange-500';
             case 'DESTROYED': return 'text-zinc-400 line-through';
             case 'ROLLING_BACK': return 'text-orange-500';
+            case 'RECONCILING': return 'text-blue-500';
             case 'ROLLBACK_COMPLETE': return 'text-zinc-400 line-through';
             case 'ROLLBACK_FAILED': return 'text-red-500';
             case 'CONNECTION_LOST': return 'text-zinc-500';
@@ -119,9 +139,11 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
         switch (status) {
             case 'COMPLETED': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
             case 'FAILED': return <XCircle className="w-5 h-5 text-red-500" />;
+            case 'DRIFT_DETECTED': return <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" />;
             case 'DESTROYING': return <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />;
             case 'DESTROYED': return <Trash2 className="w-5 h-5 text-zinc-400" />;
             case 'ROLLING_BACK': return <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />;
+            case 'RECONCILING': return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
             case 'ROLLBACK_COMPLETE': return <Trash2 className="w-5 h-5 text-zinc-400" />;
             case 'ROLLBACK_FAILED': return <XCircle className="w-5 h-5 text-red-500" />;
             case 'CONNECTION_LOST': return <XCircle className="w-5 h-5 text-zinc-500" />;
@@ -146,13 +168,22 @@ const DeploymentStatus = ({ deploymentId, onClose }) => {
                     <span className="text-xs text-zinc-500">ID: {deploymentId}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    {['FAILED', 'ROLLBACK_FAILED', 'COMPLETED'].includes(status) && (
+                    {status === 'DRIFT_DETECTED' && (
+                        <button
+                            onClick={handleReconcile}
+                            className="text-xs px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded transition-colors flex items-center gap-1 font-sans"
+                        >
+                            <AlertTriangle className="w-3 h-3" />
+                            Reconcile Drift
+                        </button>
+                    )}
+                    {['FAILED', 'ROLLBACK_FAILED', 'COMPLETED', 'DRIFT_DETECTED'].includes(status) && (
                         <button
                             onClick={handleDestroy}
                             className="text-xs px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors flex items-center gap-1 font-sans"
                         >
                             <Trash2 className="w-3 h-3" />
-                            {status === 'COMPLETED' ? 'Tear Down' : 'Manual Rollback'}
+                            {['COMPLETED', 'DRIFT_DETECTED'].includes(status) ? 'Tear Down' : 'Manual Rollback'}
                         </button>
                     )}
                     <div className="flex items-center gap-2">

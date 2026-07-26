@@ -117,6 +117,36 @@ async def destroy_infrastructure(
     return {"status": "destroy_started", "deployment_id": deployment_id}
 
 
+@router.post("/{deployment_id}/reconcile")
+async def reconcile_infrastructure(
+    deployment_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Trigger Terraform Apply to reconcile drift for a specific deployment.
+    """
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    # Security check: Ensure user owns this deployment
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to reconcile this deployment")
+
+    # Reconstruct work_dir 
+    work_dir = f"./deployments/{deployment['project_name']}-{deployment_id}"
+    
+    tf_service = TerraformService(work_dir)
+    # Ensure backend configuration is set up
+    tf_service.write_backend_tf(deployment_id)
+    
+    # Rerun the workflow (Init -> Plan -> Apply)
+    background_tasks.add_task(run_terraform_workflow, deployment_id, tf_service)
+    
+    return {"status": "reconcile_started", "deployment_id": deployment_id}
+
+
 @router.get("/history")
 async def get_deployment_history(current_user: dict = Depends(get_current_user)):
     """

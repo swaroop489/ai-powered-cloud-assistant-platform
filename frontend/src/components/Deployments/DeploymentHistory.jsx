@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { History, Server, Clock, AlertCircle, CheckCircle, Trash2, Loader2, ChevronRight } from 'lucide-react';
+import { History, Server, Clock, AlertCircle, CheckCircle, XCircle, Trash2, Loader2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { deployService } from '../../api/deployService';
 import ConfirmationModal from '../Common/ConfirmationModal';
 
@@ -28,8 +28,9 @@ const DeploymentHistory = ({ onSelectDeployment, selectedDeploymentId }) => {
     const getStatusIcon = (status) => {
         if (!status) return <Loader2 className="w-3 h-3 text-amber-500" />;
         const s = status.toUpperCase();
-        if (s === 'COMPLETED') return <CheckCircle className="w-3 h-3 text-emerald-500" />;
+        if (s === 'COMPLETED' || s === 'APPLIED') return <CheckCircle className="w-3 h-3 text-emerald-500" />;
         if (s === 'FAILED') return <XCircle className="w-3 h-3 text-red-500" />;
+        if (s === 'DRIFT_DETECTED') return <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" />;
         if (s === 'DESTROYING') return <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />;
         if (s === 'DESTROYED') return <Trash2 className="w-3 h-3 text-zinc-400" />;
         return <Loader2 className="w-3 h-3 text-amber-500 animate-spin" />;
