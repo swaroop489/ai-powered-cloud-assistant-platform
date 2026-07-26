@@ -45,7 +45,34 @@ services:
       - mongo_data:/data/db
     networks:
       - app-network
-      
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloud_assistant_redis_prod
+    networks:
+      - app-network
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloud_assistant_celery_prod
+    command: celery -A app.celery_app worker --beat --loglevel=info
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017/cloud_assistant
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+    volumes:
+      - deployments_data:/app/deployments
+      - terraform_cache:/app/tf_cache
+    depends_on:
+      - redis
+      - mongo
+    networks:
+      - app-network
 volumes:
   mongo_data:
   deployments_data:
