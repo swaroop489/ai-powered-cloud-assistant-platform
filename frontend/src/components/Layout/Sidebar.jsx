@@ -4,8 +4,8 @@ import SidebarItem from "./SidebarItem";
 
 const navItems = [
   { name: "Home", path: "/", icon: <Home size={18} /> },
-  { name: "Deployments", path: "/deployments", icon: <Layers size={18} /> },
-  { name: "Metrics", path: "/metrics", icon: <BarChart3 size={18} /> },
+  { name: "Deployments", path: "/dashboard", icon: <Layers size={18} /> },
+  { name: "Metrics", path: "/dashboard/metrics", icon: <BarChart3 size={18} /> },
   { name: "Settings", path: "/settings", icon: <Settings size={18} /> },
 ];
 

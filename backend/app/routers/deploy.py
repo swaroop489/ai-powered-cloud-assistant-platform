@@ -7,8 +7,9 @@ import json
 
 from app.schemas.deployment_schema import DeploymentRequest
 from app.services.terraform_service import TerraformService
+from app.services.pricing_service import PricingService
 from app.services.stream_manager import stream_manager
-from app.utils.codegen import generate_hcl
+from app.utils.codegen.main_generator import generate_hcl
 from app.database import db
 from app.dependencies import get_current_user
 
@@ -47,6 +48,15 @@ async def apply_infrastructure(
     """
     deployment_id = str(uuid.uuid4())[:8]
     work_dir = f"./deployments/{plan.project_name}-{deployment_id}"
+
+    # FinOps Circuit Breaker
+    pricing_service = PricingService()
+    estimated_cost = pricing_service.estimate_cost(plan)
+    if estimated_cost > 50.0:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"FinOps Circuit Breaker Triggered: Estimated monthly cost (${estimated_cost}) exceeds the $50.00 security limit."
+        )
 
    
     # Create DB Record
@@ -115,6 +125,36 @@ async def destroy_infrastructure(
     background_tasks.add_task(run_destroy_workflow, deployment_id, tf_service)
     
     return {"status": "destroy_started", "deployment_id": deployment_id}
+
+
+@router.post("/{deployment_id}/reconcile")
+async def reconcile_infrastructure(
+    deployment_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Trigger Terraform Apply to reconcile drift for a specific deployment.
+    """
+    deployment = await db.db.deployments.find_one({"deployment_id": deployment_id})
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+        
+    # Security check: Ensure user owns this deployment
+    if deployment.get("user_id") != str(current_user["_id"]):
+         raise HTTPException(status_code=403, detail="Not authorized to reconcile this deployment")
+
+    # Reconstruct work_dir 
+    work_dir = f"./deployments/{deployment['project_name']}-{deployment_id}"
+    
+    tf_service = TerraformService(work_dir)
+    # Ensure backend configuration is set up
+    tf_service.write_backend_tf(deployment_id)
+    
+    # Rerun the workflow (Init -> Plan -> Apply)
+    background_tasks.add_task(run_terraform_workflow, deployment_id, tf_service)
+    
+    return {"status": "reconcile_started", "deployment_id": deployment_id}
 
 
 @router.get("/history")
