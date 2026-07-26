@@ -9,7 +9,7 @@ from app.schemas.deployment_schema import DeploymentRequest
 from app.services.terraform_service import TerraformService
 from app.services.pricing_service import PricingService
 from app.services.stream_manager import stream_manager
-from app.utils.codegen import generate_hcl
+from app.utils.codegen.main_generator import generate_hcl
 from app.database import db
 from app.dependencies import get_current_user
 
