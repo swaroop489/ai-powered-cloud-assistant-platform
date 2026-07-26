@@ -1,23 +1,29 @@
-import os
-from typing import List
-from dotenv import load_dotenv
+from typing import List, Union
+from pydantic_settings import BaseSettings
 
-load_dotenv()
+class Settings(BaseSettings):
+    SECRET_KEY: str = "default_insecure_secret"
+    MONGODB_URL: str = "mongodb://localhost:27017/cloud_assistant"
+    GEMINI_API_KEY: str = ""
 
-class Settings:
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "default_insecure_secret")
-    MONGODB_URL: str = os.getenv("MONGO_URI", os.getenv("MONGODB_URL", "mongodb://localhost:27017/cloud_assistant"))
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_DEFAULT_REGION: str = "us-east-1"
     
-    # AWS Credentials
-    AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
-    AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    AWS_DEFAULT_REGION: str = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    # Terraform Remote State
+    TF_STATE_BUCKET: str = "ai-cloud-assistant-state-bucket"
+    TF_STATE_LOCK_TABLE: str = "ai-cloud-assistant-state-lock"
+    TF_STATE_REGION: str = "us-east-1"
     
-    # CORS
+    CORS_ORIGINS: str = "http://localhost:5173"
+
     @property
-    def CORS_ORIGINS(self) -> List[str]:
-        origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-        return [origin.strip() for origin in origins_str.split(",") if origin.strip()]
+    def cors_origin_list(self) -> List[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore" 
 
 settings = Settings()

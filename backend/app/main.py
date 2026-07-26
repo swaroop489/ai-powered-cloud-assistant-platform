@@ -15,7 +15,7 @@ app = FastAPI()
 
 from .config import settings
 
-origins = settings.CORS_ORIGINS
+origins = settings.cors_origin_list
 
 app.add_middleware(
     CORSMiddleware,

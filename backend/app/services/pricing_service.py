@@ -1,9 +1,7 @@
 import boto3
 import json
-import logging
 from app.schemas.deployment_schema import DeploymentRequest
-
-logger = logging.getLogger(__name__)
+from app.services.logging_service import logger
 
 class PricingService:
     def __init__(self):

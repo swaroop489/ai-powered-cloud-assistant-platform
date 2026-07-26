@@ -1,19 +1,14 @@
-import os
-import logging
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from app.schemas.deployment_schema import DeploymentRequest
-from dotenv import load_dotenv
-load_dotenv()
-
-logger = logging.getLogger(__name__)
+from app.config import settings
+from app.services.logging_service import logger
 
 class AIService:
     def __init__(self):
-
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = settings.GEMINI_API_KEY
         if not api_key:
-             raise RuntimeError("No valid AI API key found (GOOGLE_API_KEY)")
+             raise RuntimeError("No valid AI API key found (GEMINI_API_KEY)")
 
         if api_key:
             self.llm = ChatGoogleGenerativeAI(

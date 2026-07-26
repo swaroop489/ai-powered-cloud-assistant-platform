@@ -1,14 +1,11 @@
 import asyncio
 import subprocess
 import shutil
-import logging
 import os
 import json
 from typing import AsyncGenerator, List, Optional
 from pathlib import Path
-
-# Configure logger for this service
-logger = logging.getLogger(__name__)
+from app.services.logging_service import logger
 
 class TerraformService:
     """
@@ -105,9 +102,11 @@ class TerraformService:
 
     def write_backend_tf(self, deployment_id: str) -> str:
         """Writes the generated backend config to backend.tf for remote state."""
-        bucket = os.getenv("TF_STATE_BUCKET", "ai-cloud-assistant-state-bucket")
-        table = os.getenv("TF_STATE_LOCK_TABLE", "ai-cloud-assistant-state-lock")
-        region = os.getenv("TF_STATE_REGION", "us-east-1")
+        from app.config import settings
+        
+        bucket = settings.TF_STATE_BUCKET
+        table = settings.TF_STATE_LOCK_TABLE
+        region = settings.TF_STATE_REGION
         
         backend_content = f"""
 terraform {{
