@@ -1,11 +1,8 @@
-import axios from "./apiClient";
+import apiClient from './apiClient';
 
-export const getDeployments = async () => {
-  const res = await axios.get("/deployments");
-  return res.data;
-};
-
-export const getDeploymentById = async (id) => {
-  const res = await axios.get(`/deployments/${id}`);
-  return res.data;
+export const metricsService = {
+    getGlobalMetrics: async () => {
+        const response = await apiClient.get('/metrics');
+        return response.data;
+    }
 };
